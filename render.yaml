@@ -1,0 +1,32 @@
+# render.yaml - Deploy CloudBite Backend on Render
+services:
+  - type: web
+    name: cloudbite-backend
+    env: java
+    region: singapore
+    plan: free
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/cloudbite-backend-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        value: cloudbite
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: PORT
+        value: 8080
