@@ -10,9 +10,9 @@ import com.cloudbite.repository.PaymentRepository;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.PaymentLink;
+import com.razorpay.Payment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -142,17 +142,15 @@ public class PaymentService {
             String status = paymentLink.get("status").toString();
 
             if ("paid".equalsIgnoreCase(status)) {
-                JSONArray payments = paymentLink.has("payments") && !paymentLink.isNull("payments")
-                        ? paymentLink.getJSONArray("payments")
-                        : new JSONArray();
+                java.util.List<Payment> payments = razorpayClient.paymentLink.fetchAllPayments(payment.getRazorpayPaymentLinkId());
                 if (!payments.isEmpty()) {
-                    JSONObject paymentData = payments.getJSONObject(0);
+                    Payment paymentData = payments.get(0);
                     order.setPaymentStatus(PaymentStatus.COMPLETED);
-                    order.setRazorpayPaymentId(paymentData.optString("payment_id", null));
+                    order.setRazorpayPaymentId(paymentData.get("id").toString());
                     orderRepository.save(order);
 
                     payment.setStatus(PaymentStatus.COMPLETED);
-                    payment.setRazorpayPaymentId(paymentData.optString("payment_id", null));
+                    payment.setRazorpayPaymentId(paymentData.get("id").toString());
                     payment.setPaidAt(LocalDateTime.now());
                     paymentRepository.save(payment);
                 }
