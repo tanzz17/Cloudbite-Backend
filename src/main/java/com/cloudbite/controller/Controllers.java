@@ -261,10 +261,17 @@ class DeliveryController {
 class PaymentController {
 
     private final PaymentService paymentService;
+    private final UserRepository userRepository;
+
+    private User getUser(Principal principal) {
+        return userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     @PostMapping("/create-order")
-    public ResponseEntity<?> createPaymentOrder(@RequestBody Map<String, Long> req) {
-        return ResponseEntity.ok(paymentService.createRazorpayOrder(req.get("orderId")));
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> createPaymentOrder(Principal principal, @RequestBody Map<String, Long> req) {
+        return ResponseEntity.ok(paymentService.createRazorpayOrder(req.get("orderId"), getUser(principal)));
     }
 
     @PostMapping("/verify")

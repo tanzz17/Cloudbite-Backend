@@ -4,6 +4,7 @@ import com.cloudbite.enums.PaymentMethod;
 import com.cloudbite.enums.PaymentStatus;
 import com.cloudbite.model.Order;
 import com.cloudbite.model.Payment;
+import com.cloudbite.model.User;
 import com.cloudbite.repository.OrderRepository;
 import com.cloudbite.repository.PaymentRepository;
 import com.razorpay.RazorpayClient;
@@ -34,9 +35,29 @@ public class PaymentService {
     @Value("${razorpay.key.secret}")
     private String razorpayKeySecret;
 
-    public Map<String, Object> createRazorpayOrder(Long orderId) {
+    public Map<String, Object> createRazorpayOrder(Long orderId, User customer) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!order.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getPaymentMethod() != PaymentMethod.RAZORPAY) {
+            throw new RuntimeException("This order does not use Razorpay");
+        }
+        if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            throw new RuntimeException("Payment already completed for this order");
+        }
+
+        Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
+        if (existingPayment != null &&
+                existingPayment.getStatus() == PaymentStatus.PENDING &&
+                existingPayment.getRazorpayOrderId() != null &&
+                !existingPayment.getRazorpayOrderId().isBlank()) {
+            order.setRazorpayOrderId(existingPayment.getRazorpayOrderId());
+            orderRepository.save(order);
+            return buildOrderResponse(order, existingPayment.getRazorpayOrderId());
+        }
 
         try {
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
@@ -47,36 +68,42 @@ public class PaymentService {
 
             com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
 
-            // Save payment record
-            Payment payment = Payment.builder()
+            Payment payment = existingPayment != null ? existingPayment : Payment.builder()
                     .order(order)
                     .method(PaymentMethod.RAZORPAY)
-                    .status(PaymentStatus.PENDING)
-                    .amount(order.getTotalAmount())
-                    .razorpayOrderId(razorpayOrder.get("id"))
-                    .currency("INR")
                     .build();
+            payment.setStatus(PaymentStatus.PENDING);
+            payment.setAmount(order.getTotalAmount());
+            payment.setRazorpayOrderId(razorpayOrder.get("id").toString());
+            payment.setCurrency("INR");
+            payment.setRazorpayPaymentId(null);
+            payment.setRazorpaySignature(null);
+            payment.setPaidAt(null);
             paymentRepository.save(payment);
 
             // Update order with razorpay order id
-            order.setRazorpayOrderId(razorpayOrder.get("id"));
+            order.setRazorpayOrderId(razorpayOrder.get("id").toString());
             orderRepository.save(order);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("razorpayOrderId", razorpayOrder.get("id").toString());
-            response.put("amount", order.getTotalAmount());
-            response.put("currency", "INR");
-            response.put("keyId", razorpayKeyId);
-            response.put("orderNumber", order.getOrderNumber());
-            response.put("customerName", order.getCustomer().getName());
-            response.put("customerEmail", order.getCustomer().getEmail());
-            response.put("customerPhone", order.getCustomer().getPhone());
-            return response;
+            return buildOrderResponse(order, razorpayOrder.get("id").toString());
 
         } catch (RazorpayException e) {
             log.error("Razorpay error: {}", e.getMessage());
             throw new RuntimeException("Payment initialization failed: " + e.getMessage());
         }
+    }
+
+    private Map<String, Object> buildOrderResponse(Order order, String razorpayOrderId) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("razorpayOrderId", razorpayOrderId);
+        response.put("amount", order.getTotalAmount());
+        response.put("currency", "INR");
+        response.put("keyId", razorpayKeyId);
+        response.put("orderNumber", order.getOrderNumber());
+        response.put("customerName", order.getCustomer().getName());
+        response.put("customerEmail", order.getCustomer().getEmail());
+        response.put("customerPhone", order.getCustomer().getPhone());
+        return response;
     }
 
     public boolean verifyPayment(String razorpayOrderId, String razorpayPaymentId,
