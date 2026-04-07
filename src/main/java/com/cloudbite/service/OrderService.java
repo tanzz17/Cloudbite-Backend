@@ -173,6 +173,9 @@ public class OrderService {
     public Order cancelOrder(Long orderId, User user, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getCustomer().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
         if (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
             throw new RuntimeException("Cannot cancel order at this stage");
         }
@@ -209,9 +212,13 @@ public class OrderService {
         return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customer.getId());
     }
 
-    public Order getOrderById(Long orderId) {
-        return orderRepository.findById(orderId)
+    public Order getOrderById(Long orderId, User customer) {
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        return order;
     }
 
     private Order getOrderForKitchen(Long orderId, User kitchenOwner) {

@@ -192,8 +192,8 @@ class CustomerController {
     }
 
     @GetMapping("/orders/{orderId}")
-    public ResponseEntity<?> getOrder(@PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.getOrderById(orderId));
+    public ResponseEntity<?> getOrder(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.getOrderById(orderId, getUser(principal)));
     }
 
     @PatchMapping("/orders/{orderId}/cancel")
