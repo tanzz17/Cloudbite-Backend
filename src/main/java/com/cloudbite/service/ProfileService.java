@@ -15,15 +15,22 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private Double toNullableDouble(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.doubleValue();
+        String text = value.toString().trim();
+        return text.isEmpty() ? null : Double.parseDouble(text);
+    }
+
     public User updateProfile(User user, Map<String, Object> request) {
         if (request.containsKey("name")) user.setName((String) request.get("name"));
         if (request.containsKey("phone")) user.setPhone((String) request.get("phone"));
         if (request.containsKey("address")) user.setAddress((String) request.get("address"));
         if (request.containsKey("profileImage")) user.setProfileImage((String) request.get("profileImage"));
         if (request.containsKey("latitude"))
-            user.setLatitude(((Number) request.get("latitude")).doubleValue());
+            user.setLatitude(toNullableDouble(request.get("latitude")));
         if (request.containsKey("longitude"))
-            user.setLongitude(((Number) request.get("longitude")).doubleValue());
+            user.setLongitude(toNullableDouble(request.get("longitude")));
         if (request.containsKey("vehicleType")) user.setVehicleType((String) request.get("vehicleType"));
         if (request.containsKey("vehicleNumber")) user.setVehicleNumber((String) request.get("vehicleNumber"));
         return userRepository.save(user);

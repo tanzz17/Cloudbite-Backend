@@ -2,6 +2,7 @@ package com.cloudbite.model;
 
 import com.cloudbite.enums.PaymentMethod;
 import com.cloudbite.enums.PaymentStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payments")
+@JsonIgnoreProperties({"order"})
 @Data
 @Builder
 @NoArgsConstructor

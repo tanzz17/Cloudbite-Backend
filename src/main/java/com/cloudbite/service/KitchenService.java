@@ -20,6 +20,13 @@ public class KitchenService {
     private final KitchenRepository kitchenRepository;
     private final MenuItemRepository menuItemRepository;
 
+    private Double toNullableDouble(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.doubleValue();
+        String text = value.toString().trim();
+        return text.isEmpty() ? null : Double.parseDouble(text);
+    }
+
     public Kitchen getKitchenByOwner(User owner) {
         return kitchenRepository.findByOwner(owner)
                 .orElseThrow(() -> new RuntimeException("Kitchen not found. Contact admin to set up your kitchen."));
@@ -45,9 +52,9 @@ public class KitchenService {
         if (request.containsKey("deliveryRadius"))
             kitchen.setDeliveryRadius(((Number) request.get("deliveryRadius")).doubleValue());
         if (request.containsKey("latitude"))
-            kitchen.setLatitude(((Number) request.get("latitude")).doubleValue());
+            kitchen.setLatitude(toNullableDouble(request.get("latitude")));
         if (request.containsKey("longitude"))
-            kitchen.setLongitude(((Number) request.get("longitude")).doubleValue());
+            kitchen.setLongitude(toNullableDouble(request.get("longitude")));
         if (request.containsKey("openingTime"))
             kitchen.setOpeningTime(LocalTime.parse((String) request.get("openingTime")));
         if (request.containsKey("closingTime"))

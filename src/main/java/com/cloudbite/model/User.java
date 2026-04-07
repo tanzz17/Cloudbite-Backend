@@ -1,6 +1,7 @@
 package com.cloudbite.model;
 
 import com.cloudbite.enums.Role;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
+@JsonIgnoreProperties({"password", "orders", "cart"})
 @Data
 @Builder
 @NoArgsConstructor

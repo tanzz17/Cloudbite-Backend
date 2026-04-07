@@ -1,5 +1,6 @@
 package com.cloudbite.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "menu_items")
+@JsonIgnoreProperties({"kitchen"})
 @Data
 @Builder
 @NoArgsConstructor

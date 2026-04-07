@@ -1,10 +1,12 @@
 package com.cloudbite.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(name = "order_items")
+@JsonIgnoreProperties({"order", "menuItem"})
 @Data
 @Builder
 @NoArgsConstructor
