@@ -280,6 +280,12 @@ class PaymentController {
         return ResponseEntity.ok(paymentService.createRazorpayOrder(req.get("orderId"), getUser(principal)));
     }
 
+    @GetMapping("/orders/{orderId}/sync-status")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> syncPaymentStatus(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.syncPaymentLinkStatus(orderId, getUser(principal)));
+    }
+
     @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(@RequestBody Map<String, Object> req) {
         boolean verified = paymentService.verifyPayment(

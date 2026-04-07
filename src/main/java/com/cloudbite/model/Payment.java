@@ -35,6 +35,8 @@ public class Payment {
 
     private Double amount;
     private String razorpayOrderId;
+    private String razorpayPaymentLinkId;
+    private String razorpayPaymentLinkUrl;
     private String razorpayPaymentId;
     private String razorpaySignature;
     private String currency;
