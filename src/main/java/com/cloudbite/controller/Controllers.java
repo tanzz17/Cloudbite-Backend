@@ -4,11 +4,14 @@ import com.cloudbite.model.User;
 import com.cloudbite.repository.UserRepository;
 import com.cloudbite.service.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.net.URI;
 import java.util.Map;
 
 // ==================== KITCHEN OWNER CONTROLLER ====================
@@ -263,6 +266,9 @@ class PaymentController {
     private final PaymentService paymentService;
     private final UserRepository userRepository;
 
+    @Value("${app.frontend.url:${FRONTEND_URL:http://localhost:5173}}")
+    private String frontendUrl;
+
     private User getUser(Principal principal) {
         return userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -286,6 +292,28 @@ class PaymentController {
             return ResponseEntity.ok(Map.of("success", true, "message", "Payment verified successfully"));
         }
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Payment verification failed"));
+    }
+
+    @PostMapping("/callback")
+    public ResponseEntity<Void> paymentCallback(
+            @RequestParam(name = "order_id") Long orderId,
+            @RequestParam(name = "razorpay_order_id", required = false) String razorpayOrderId,
+            @RequestParam(name = "razorpay_payment_id", required = false) String razorpayPaymentId,
+            @RequestParam(name = "razorpay_signature", required = false) String razorpaySignature,
+            @RequestParam Map<String, String> params
+    ) {
+        boolean verified = razorpayOrderId != null
+                && razorpayPaymentId != null
+                && razorpaySignature != null
+                && paymentService.verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId);
+
+        String status = verified ? "success" : "failed";
+        String reason = verified ? "" : "&reason=" + (params.containsKey("error[description]")
+                ? params.get("error[description]").replace(" ", "%20")
+                : "Payment%20failed");
+
+        String redirectUrl = frontendUrl + "/orders/" + orderId + "?payment=" + status + reason;
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirectUrl)).build();
     }
 }
 

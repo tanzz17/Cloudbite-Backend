@@ -36,6 +36,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/**",
                     "/api/public/**",
+                    "/api/payments/callback",
                     "/ws/**",
                     "/actuator/health"
                 ).permitAll()
