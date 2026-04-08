@@ -9,8 +9,6 @@ import com.cloudbite.repository.OrderRepository;
 import com.cloudbite.repository.PaymentRepository;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
-import com.razorpay.PaymentLink;
-import com.razorpay.Payment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -37,9 +35,6 @@ public class PaymentService {
     @Value("${razorpay.key.secret}")
     private String razorpayKeySecret;
 
-    @Value("${app.frontend.url:${FRONTEND_URL:http://localhost:5173}}")
-    private String frontendUrl;
-
     public Map<String, Object> createRazorpayOrder(Long orderId, User customer) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -57,30 +52,21 @@ public class PaymentService {
         Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
         if (existingPayment != null &&
                 existingPayment.getStatus() == PaymentStatus.PENDING &&
-                existingPayment.getRazorpayPaymentLinkId() != null &&
-                !existingPayment.getRazorpayPaymentLinkId().isBlank() &&
-                existingPayment.getRazorpayPaymentLinkUrl() != null &&
-                !existingPayment.getRazorpayPaymentLinkUrl().isBlank()) {
-            return buildPaymentLinkResponse(order, existingPayment);
+                existingPayment.getRazorpayOrderId() != null &&
+                !existingPayment.getRazorpayOrderId().isBlank()) {
+            order.setRazorpayOrderId(existingPayment.getRazorpayOrderId());
+            orderRepository.save(order);
+            return buildOrderResponse(order, existingPayment.getRazorpayOrderId());
         }
 
         try {
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
-            JSONObject paymentLinkRequest = new JSONObject();
-            paymentLinkRequest.put("amount", (int) Math.round(order.getTotalAmount() * 100)); // paise
-            paymentLinkRequest.put("currency", "INR");
-            paymentLinkRequest.put("reference_id", order.getOrderNumber());
-            paymentLinkRequest.put("description", "CloudBite order " + order.getOrderNumber());
-            paymentLinkRequest.put("callback_url", frontendUrl + "/orders/" + order.getId() + "?payment=processing");
-            paymentLinkRequest.put("callback_method", "get");
-            paymentLinkRequest.put("reminder_enable", true);
-            paymentLinkRequest.put("notify", new JSONObject().put("sms", false).put("email", false));
-            paymentLinkRequest.put("customer", new JSONObject()
-                    .put("name", order.getCustomer().getName() != null ? order.getCustomer().getName() : "")
-                    .put("email", order.getCustomer().getEmail() != null ? order.getCustomer().getEmail() : "")
-                    .put("contact", order.getCustomer().getPhone() != null ? order.getCustomer().getPhone() : ""));
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", (int) Math.round(order.getTotalAmount() * 100));
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", order.getOrderNumber());
 
-            PaymentLink paymentLink = razorpayClient.paymentLink.create(paymentLinkRequest);
+            com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
 
             Payment payment = existingPayment != null ? existingPayment : Payment.builder()
                     .order(order)
@@ -88,19 +74,17 @@ public class PaymentService {
                     .build();
             payment.setStatus(PaymentStatus.PENDING);
             payment.setAmount(order.getTotalAmount());
-            payment.setRazorpayOrderId(null);
-            payment.setRazorpayPaymentLinkId(paymentLink.get("id").toString());
-            payment.setRazorpayPaymentLinkUrl(paymentLink.get("short_url").toString());
+            payment.setRazorpayOrderId(razorpayOrder.get("id").toString());
             payment.setCurrency("INR");
             payment.setRazorpayPaymentId(null);
             payment.setRazorpaySignature(null);
             payment.setPaidAt(null);
             paymentRepository.save(payment);
 
-            order.setRazorpayOrderId(null);
+            order.setRazorpayOrderId(razorpayOrder.get("id").toString());
             orderRepository.save(order);
 
-            return buildPaymentLinkResponse(order, payment);
+            return buildOrderResponse(order, razorpayOrder.get("id").toString());
 
         } catch (RazorpayException e) {
             log.error("Razorpay error: {}", e.getMessage());
@@ -108,10 +92,9 @@ public class PaymentService {
         }
     }
 
-    private Map<String, Object> buildPaymentLinkResponse(Order order, Payment payment) {
+    private Map<String, Object> buildOrderResponse(Order order, String razorpayOrderId) {
         Map<String, Object> response = new HashMap<>();
-        response.put("paymentLinkId", payment.getRazorpayPaymentLinkId());
-        response.put("paymentLinkUrl", payment.getRazorpayPaymentLinkUrl());
+        response.put("razorpayOrderId", razorpayOrderId);
         response.put("amount", order.getTotalAmount());
         response.put("currency", "INR");
         response.put("keyId", razorpayKeyId);
@@ -120,51 +103,6 @@ public class PaymentService {
         response.put("customerEmail", order.getCustomer().getEmail());
         response.put("customerPhone", order.getCustomer().getPhone());
         return response;
-    }
-
-    public Map<String, Object> syncPaymentLinkStatus(Long orderId, User customer) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (!order.getCustomer().getId().equals(customer.getId())) {
-            throw new RuntimeException("Unauthorized");
-        }
-
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
-
-        if (payment.getRazorpayPaymentLinkId() == null || payment.getRazorpayPaymentLinkId().isBlank()) {
-            throw new RuntimeException("Payment link not found");
-        }
-
-        try {
-            RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
-            PaymentLink paymentLink = razorpayClient.paymentLink.fetch(payment.getRazorpayPaymentLinkId());
-            String status = paymentLink.get("status").toString();
-
-            if ("paid".equalsIgnoreCase(status)) {
-                java.util.List<Payment> payments = razorpayClient.paymentLink.fetchAllPayments(payment.getRazorpayPaymentLinkId());
-                if (!payments.isEmpty()) {
-                    Payment paymentData = payments.get(0);
-                    order.setPaymentStatus(PaymentStatus.COMPLETED);
-                    order.setRazorpayPaymentId(paymentData.get("id").toString());
-                    orderRepository.save(order);
-
-                    payment.setStatus(PaymentStatus.COMPLETED);
-                    payment.setRazorpayPaymentId(paymentData.get("id").toString());
-                    payment.setPaidAt(LocalDateTime.now());
-                    paymentRepository.save(payment);
-                }
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", status);
-            response.put("paymentStatus", order.getPaymentStatus().name());
-            response.put("paid", order.getPaymentStatus() == PaymentStatus.COMPLETED);
-            return response;
-        } catch (RazorpayException e) {
-            log.error("Payment link status sync error: {}", e.getMessage());
-            throw new RuntimeException("Unable to sync payment status: " + e.getMessage());
-        }
     }
 
     public boolean verifyPayment(String razorpayOrderId, String razorpayPaymentId,
