@@ -170,21 +170,18 @@ public class OrderService {
         return saved;
     }
 
-    public Order cancelOrder(Long orderId, User user, String reason) {
+    public Order cancelOrderByCustomer(Long orderId, User customer, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (!order.getCustomer().getId().equals(user.getId())) {
+        if (!order.getCustomer().getId().equals(customer.getId())) {
             throw new RuntimeException("Unauthorized");
         }
-        if (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
-            throw new RuntimeException("Cannot cancel order at this stage");
-        }
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancelledAt(LocalDateTime.now());
-        order.setCancellationReason(reason);
-        Order saved = orderRepository.save(order);
-        notifyOrderUpdate(saved);
-        return saved;
+        return cancelOrderInternal(order, reason);
+    }
+
+    public Order cancelOrderByKitchenOwner(Long orderId, User kitchenOwner, String reason) {
+        Order order = getOrderForKitchen(orderId, kitchenOwner);
+        return cancelOrderInternal(order, reason);
     }
 
     // ======== Getters ========
@@ -241,6 +238,24 @@ public class OrderService {
     public Double getKitchenRevenue(Long kitchenId) {
         Double revenue = orderRepository.getKitchenRevenue(kitchenId);
         return revenue != null ? revenue : 0.0;
+    }
+
+    private Order cancelOrderInternal(Order order, String reason) {
+        if (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
+            throw new RuntimeException("Cannot cancel order at this stage");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledAt(LocalDateTime.now());
+        order.setCancellationReason(reason);
+
+        if (order.getPaymentMethod() == PaymentMethod.RAZORPAY && order.getPaymentStatus() != PaymentStatus.COMPLETED) {
+            order.setPaymentStatus(PaymentStatus.FAILED);
+        }
+
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
     }
 
     private void notifyOrderUpdate(Order order) {

@@ -105,7 +105,7 @@ class KitchenController {
     @PatchMapping("/orders/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(Principal principal, @PathVariable Long orderId,
                                          @RequestBody Map<String, String> req) {
-        return ResponseEntity.ok(orderService.cancelOrder(orderId, getUser(principal), req.get("reason")));
+        return ResponseEntity.ok(orderService.cancelOrderByKitchenOwner(orderId, getUser(principal), req.get("reason")));
     }
 
     @GetMapping("/revenue")
@@ -199,7 +199,7 @@ class CustomerController {
     @PatchMapping("/orders/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(Principal principal, @PathVariable Long orderId,
                                          @RequestBody Map<String, String> req) {
-        return ResponseEntity.ok(orderService.cancelOrder(orderId, getUser(principal), req.get("reason")));
+        return ResponseEntity.ok(orderService.cancelOrderByCustomer(orderId, getUser(principal), req.get("reason")));
     }
 }
 
