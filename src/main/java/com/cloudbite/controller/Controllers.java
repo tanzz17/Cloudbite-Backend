@@ -125,6 +125,7 @@ class CustomerController {
     private final OrderService orderService;
     private final CartService cartService;
     private final KitchenService kitchenService;
+    private final PaymentService paymentService;
     private final UserRepository userRepository;
     private final com.cloudbite.repository.KitchenRepository kitchenRepository;
 
@@ -200,6 +201,16 @@ class CustomerController {
     public ResponseEntity<?> cancelOrder(Principal principal, @PathVariable Long orderId,
                                          @RequestBody Map<String, String> req) {
         return ResponseEntity.ok(orderService.cancelOrderByCustomer(orderId, getUser(principal), req.get("reason")));
+    }
+
+    @PostMapping("/orders/{orderId}/payment-link")
+    public ResponseEntity<?> createPaymentLink(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.createRazorpayPaymentLink(orderId, getUser(principal)));
+    }
+
+    @PostMapping("/orders/{orderId}/payment-sync")
+    public ResponseEntity<?> syncPaymentStatus(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.syncPaymentLinkStatus(orderId, getUser(principal)));
     }
 }
 
