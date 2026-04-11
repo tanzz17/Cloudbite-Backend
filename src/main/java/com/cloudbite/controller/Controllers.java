@@ -354,6 +354,11 @@ class PublicController {
     public ResponseEntity<?> checkPaymentConfig() {
         return ResponseEntity.ok(paymentService.checkRazorpayConfig());
     }
+
+    @GetMapping("/test-razorpay")
+    public ResponseEntity<?> testRazorpayConnection() {
+        return ResponseEntity.ok(paymentService.testRazorpayConnection());
+    }
 }
 
 // ==================== PROFILE CONTROLLER ====================

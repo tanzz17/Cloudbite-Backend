@@ -55,19 +55,98 @@ public class PaymentService {
 
         try {
             validateRazorpayConfiguration();
+            log.info("Creating Razorpay order for orderId: {}, Key: {}", orderId, razorpayKeyId);
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
 
-            if (existingPayment != null &&
-                    existingPayment.getRazorpayPaymentLinkId() != null &&
-                    !existingPayment.getRazorpayPaymentLinkId().isBlank()) {
-                try {
-                    JSONObject existingLink = razorpayClient.paymentLink
-                            .fetch(existingPayment.getRazorpayPaymentLinkId())
-                            .toJson();
-                    applyPaymentLinkState(order, existingPayment, existingLink);
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", toSubunitAmount(order.getTotalAmount()));
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "rcpt_" + order.getId());
+            
+            JSONObject notes = new JSONObject();
+            notes.put("orderId", order.getId());
+            notes.put("orderNumber", order.getOrderNumber());
+            orderRequest.put("notes", notes);
 
-                    if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
-                        return buildPaymentLinkResponse(order, existingPayment);
+            log.info("Razorpay order request: {}", orderRequest.toString());
+            
+            com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+            JSONObject razorpayOrderJson = razorpayOrder.toJson();
+            
+            log.info("Razorpay order created: {}", razorpayOrderJson.toString());
+
+            Payment payment = existingPayment != null ? existingPayment : Payment.builder()
+                    .order(order)
+                    .method(PaymentMethod.RAZORPAY)
+                    .build();
+            payment.setAmount(order.getTotalAmount());
+            payment.setCurrency("INR");
+            payment.setRazorpayOrderId(razorpayOrderJson.optString("id", null));
+            payment.setStatus(PaymentStatus.PENDING);
+            paymentRepository.save(payment);
+
+            order.setPaymentStatus(PaymentStatus.PENDING);
+            order.setRazorpayOrderId(razorpayOrderJson.optString("id", null));
+            orderRepository.save(order);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("razorpayOrderId", razorpayOrderJson.optString("id"));
+            response.put("amount", order.getTotalAmount());
+            response.put("currency", "INR");
+            response.put("keyId", razorpayKeyId);
+            response.put("orderNumber", order.getOrderNumber());
+            response.put("orderId", order.getId());
+            response.put("paymentStatus", order.getPaymentStatus());
+            response.put("customerName", order.getCustomer().getName());
+            response.put("customerEmail", order.getCustomer().getEmail());
+            response.put("customerPhone", order.getCustomer().getPhone());
+            return response;
+            
+        } catch (RazorpayException e) {
+            String errorMsg = e.getMessage();
+            log.error("=== RAZORPAY ERROR ===");
+            log.error("Order ID: {}", orderId);
+            log.error("Key ID being used: {}", razorpayKeyId);
+            log.error("Error message: {}", errorMsg);
+            log.error("======================");
+            
+            if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication") || errorMsg.contains("authentication"))) {
+                throw new RuntimeException("Razorpay authentication failed. Please check your API keys. Error: " + errorMsg);
+            }
+            throw new RuntimeException("Failed to create payment: " + errorMsg);
+        }
+    }
+
+    public Map<String, Object> testRazorpayConnection() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            log.info("Testing Razorpay connection with key: {}", razorpayKeyId);
+            RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+            
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", 100);
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "test_rcpt");
+            
+            com.razorpay.Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+            JSONObject razorpayOrderJson = razorpayOrder.toJson();
+            
+            result.put("success", true);
+            result.put("message", "Razorpay connection successful!");
+            result.put("testOrderId", razorpayOrderJson.optString("id"));
+            result.put("keyId", razorpayKeyId);
+            log.info("Razorpay test successful: {}", razorpayOrderJson.toString());
+        } catch (RazorpayException e) {
+            result.put("success", false);
+            result.put("message", "Razorpay connection failed: " + e.getMessage());
+            result.put("error", e.getMessage());
+            result.put("keyId", razorpayKeyId);
+            log.error("Razorpay test failed: {}", e.getMessage());
+        }
+        return result;
+    }
+
+    private boolean validateRazorpayConfiguration() {
                     }
 
                     String linkStatus = existingLink.optString("status", "");
@@ -160,22 +239,23 @@ public class PaymentService {
             return buildPaymentLinkResponse(order, payment);
         }
 
-        if (demoMode && payment.getRazorpayPaymentLinkId().startsWith("demo_link_")) {
+        if (demoMode && payment.getRazorpayPaymentLinkId() != null && payment.getRazorpayPaymentLinkId().startsWith("demo_link_")) {
             return buildPaymentLinkResponse(order, payment);
         }
 
         try {
             validateRazorpayConfiguration();
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
-            JSONObject paymentLinkJson = razorpayClient.paymentLink.fetch(payment.getRazorpayPaymentLinkId()).toJson();
-            applyPaymentLinkState(order, payment, paymentLinkJson);
-            return buildPaymentLinkResponse(order, payment);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("orderId", order.getId());
+            response.put("razorpayOrderId", order.getRazorpayOrderId());
+            response.put("paymentStatus", order.getPaymentStatus());
+            response.put("keyId", razorpayKeyId);
+            return response;
         } catch (RazorpayException e) {
             String errorMsg = e.getMessage();
             log.error("Razorpay sync error - Key ID: {}, Message: {}", razorpayKeyId, errorMsg);
-            if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication"))) {
-                throw new RuntimeException("Payment service authentication failed. Please check your Razorpay API keys.");
-            }
             throw new RuntimeException("Failed to refresh payment status: " + errorMsg);
         }
     }
@@ -391,6 +471,9 @@ public class PaymentService {
                     payment.setPaidAt(LocalDateTime.now());
                     paymentRepository.save(payment);
                 });
+                
+                notifyKitchenAboutOrder(order.getId(), order.getKitchen().getId());
+                log.info("Payment verified and completed for order: {}", orderId);
             }
             return isValid;
         } catch (Exception e) {
@@ -405,6 +488,7 @@ public class PaymentService {
         result.put("keySecretConfigured", hasText(razorpayKeySecret) && !razorpayKeySecret.contains("your-razorpay-key-secret"));
         result.put("keyIdPrefix", razorpayKeyId != null && razorpayKeyId.length() >= 10 ? razorpayKeyId.substring(0, 10) : "not-set");
         result.put("frontendUrl", frontendUrl);
+        result.put("demoMode", demoMode);
         return result;
     }
 }
