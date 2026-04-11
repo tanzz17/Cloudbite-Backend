@@ -307,6 +307,11 @@ class PaymentController {
         }
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Payment verification failed"));
     }
+
+    @PostMapping("/demo-complete/{orderId}")
+    public ResponseEntity<?> completeDemoPayment(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.completeDemoPayment(orderId, getUser(principal)));
+    }
 }
 
 // ==================== PUBLIC CONTROLLER ====================

@@ -42,9 +42,16 @@ public class PaymentService {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
+    @Value("${app.demo.mode:false}")
+    private boolean demoMode;
+
     public Map<String, Object> createRazorpayPaymentLink(Long orderId, User customer) {
         Order order = getOwnedRazorpayOrder(orderId, customer, false);
         Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
+
+        if (demoMode) {
+            return createDemoPaymentLink(order, existingPayment);
+        }
 
         try {
             validateRazorpayConfiguration();
@@ -160,6 +167,10 @@ public class PaymentService {
             return buildPaymentLinkResponse(order, payment);
         }
 
+        if (demoMode && payment.getRazorpayPaymentLinkId().startsWith("demo_link_")) {
+            return buildPaymentLinkResponse(order, payment);
+        }
+
         try {
             validateRazorpayConfiguration();
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
@@ -176,6 +187,31 @@ public class PaymentService {
         }
     }
 
+    public Map<String, Object> completeDemoPayment(Long orderId, User customer) {
+        Order order = getOwnedRazorpayOrder(orderId, customer, true);
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Payment record not found"));
+
+        if (!payment.getRazorpayPaymentLinkId().startsWith("demo_link_")) {
+            throw new RuntimeException("Not a demo payment");
+        }
+
+        log.info("DEMO MODE: Completing simulated payment for order {}", orderId);
+        
+        order.setPaymentStatus(PaymentStatus.COMPLETED);
+        order.setRazorpayPaymentId("demo_payment_" + System.currentTimeMillis());
+        orderRepository.save(order);
+
+        payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setRazorpayPaymentId(order.getRazorpayPaymentId());
+        payment.setPaidAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        notifyKitchenAboutOrder(order.getId(), order.getKitchen().getId());
+
+        return buildPaymentLinkResponse(order, payment);
+    }
+
     private Order getOwnedRazorpayOrder(Long orderId, User customer, boolean allowCompleted) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -190,6 +226,39 @@ public class PaymentService {
             throw new RuntimeException("Payment already completed for this order");
         }
         return order;
+    }
+
+    private Map<String, Object> createDemoPaymentLink(Order order, Payment existingPayment) {
+        log.info("DEMO MODE: Creating simulated payment link for order {}", order.getId());
+        
+        Payment payment = existingPayment != null ? existingPayment : Payment.builder()
+                .order(order)
+                .method(PaymentMethod.RAZORPAY)
+                .build();
+        payment.setAmount(order.getTotalAmount());
+        payment.setCurrency("INR");
+        payment.setRazorpayPaymentLinkId("demo_link_" + order.getId());
+        payment.setRazorpayPaymentLinkUrl(frontendUrl + "/demo-payment?orderId=" + order.getId());
+        payment.setStatus(PaymentStatus.PENDING);
+        paymentRepository.save(payment);
+
+        order.setPaymentStatus(PaymentStatus.PENDING);
+        orderRepository.save(order);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("paymentLinkId", payment.getRazorpayPaymentLinkId());
+        response.put("paymentLinkUrl", payment.getRazorpayPaymentLinkUrl());
+        response.put("amount", order.getTotalAmount());
+        response.put("currency", "INR");
+        response.put("orderNumber", order.getOrderNumber());
+        response.put("orderId", order.getId());
+        response.put("paymentStatus", order.getPaymentStatus());
+        response.put("linkStatus", payment.getStatus());
+        response.put("customerName", order.getCustomer().getName());
+        response.put("customerEmail", order.getCustomer().getEmail());
+        response.put("customerPhone", order.getCustomer().getPhone());
+        response.put("demoMode", true);
+        return response;
     }
 
     private Map<String, Object> buildPaymentLinkResponse(Order order, Payment payment) {
