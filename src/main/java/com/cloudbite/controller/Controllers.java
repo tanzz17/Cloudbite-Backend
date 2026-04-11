@@ -318,6 +318,7 @@ class PublicController {
     private final com.cloudbite.repository.KitchenRepository kitchenRepository;
     private final KitchenService kitchenService;
     private final DeliveryService deliveryService;
+    private final PaymentService paymentService;
 
     @GetMapping("/kitchens")
     public ResponseEntity<?> getKitchens() {
@@ -342,6 +343,11 @@ class PublicController {
     @GetMapping("/delivery/{partnerId}/location")
     public ResponseEntity<?> getPartnerLocation(@PathVariable Long partnerId) {
         return ResponseEntity.ok(deliveryService.getPartnerLocation(partnerId));
+    }
+
+    @GetMapping("/payment-config")
+    public ResponseEntity<?> checkPaymentConfig() {
+        return ResponseEntity.ok(paymentService.checkRazorpayConfig());
     }
 }
 

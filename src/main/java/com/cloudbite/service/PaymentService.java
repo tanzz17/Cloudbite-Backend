@@ -325,4 +325,13 @@ public class PaymentService {
             return false;
         }
     }
+
+    public Map<String, Object> checkRazorpayConfig() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("keyIdConfigured", hasText(razorpayKeyId) && !razorpayKeyId.contains("your-razorpay-key-id"));
+        result.put("keySecretConfigured", hasText(razorpayKeySecret) && !razorpayKeySecret.contains("your-razorpay-key-secret"));
+        result.put("keyIdPrefix", razorpayKeyId != null && razorpayKeyId.length() >= 10 ? razorpayKeyId.substring(0, 10) : "not-set");
+        result.put("frontendUrl", frontendUrl);
+        return result;
+    }
 }
