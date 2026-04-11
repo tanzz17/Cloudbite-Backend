@@ -146,87 +146,11 @@ public class PaymentService {
         return result;
     }
 
-    private boolean validateRazorpayConfiguration() {
-                    }
-
-                    String linkStatus = existingLink.optString("status", "");
-                    if ("created".equalsIgnoreCase(linkStatus) || "partially_paid".equalsIgnoreCase(linkStatus)) {
-                        return buildPaymentLinkResponse(order, existingPayment);
-                    }
-                } catch (RazorpayException e) {
-                    log.warn("Stored Razorpay payment link {} is no longer reusable for order {}: {}",
-                            existingPayment.getRazorpayPaymentLinkId(), orderId, e.getMessage());
-                    clearStalePaymentLink(existingPayment);
-                }
-            }
-
-            JSONObject linkRequest = new JSONObject();
-            linkRequest.put("amount", toSubunitAmount(order.getTotalAmount()));
-            linkRequest.put("currency", "INR");
-            linkRequest.put("reference_id", buildReferenceId(order));
-            linkRequest.put("description", "Payment for order " + order.getOrderNumber());
-            linkRequest.put("callback_url", buildCallbackUrl(order.getId()));
-            linkRequest.put("callback_method", "get");
-
-            JSONObject customerJson = new JSONObject();
-            if (hasText(order.getCustomer().getName())) {
-                customerJson.put("name", order.getCustomer().getName().trim());
-            }
-            if (hasText(order.getCustomer().getEmail())) {
-                customerJson.put("email", order.getCustomer().getEmail().trim());
-            }
-            String normalizedPhone = normalizePhone(order.getCustomer().getPhone());
-            if (hasText(normalizedPhone)) {
-                customerJson.put("contact", normalizedPhone);
-            }
-            linkRequest.put("customer", customerJson);
-
-            JSONObject notifyJson = new JSONObject();
-            notifyJson.put("sms", false);
-            notifyJson.put("email", false);
-            linkRequest.put("notify", notifyJson);
-            linkRequest.put("reminder_enable", false);
-            linkRequest.put("expire_by", LocalDateTime.now().plusHours(24).toEpochSecond(ZoneOffset.UTC));
-
-            JSONObject notes = new JSONObject();
-            notes.put("orderId", order.getId());
-            notes.put("orderNumber", order.getOrderNumber());
-            linkRequest.put("notes", notes);
-
-            JSONObject paymentLinkJson = razorpayClient.paymentLink.create(linkRequest).toJson();
-
-            Payment payment = existingPayment != null ? existingPayment : Payment.builder()
-                    .order(order)
-                    .method(PaymentMethod.RAZORPAY)
-                    .build();
-            payment.setAmount(order.getTotalAmount());
-            payment.setCurrency("INR");
-            payment.setRazorpayOrderId(null);
-            payment.setRazorpayPaymentLinkId(paymentLinkJson.optString("id", null));
-            payment.setRazorpayPaymentLinkUrl(paymentLinkJson.optString("short_url", null));
-            payment.setRazorpayPaymentId(null);
-            payment.setRazorpaySignature(null);
-            payment.setPaidAt(null);
-            payment.setStatus(PaymentStatus.PENDING);
-            paymentRepository.save(payment);
-
-            order.setPaymentStatus(PaymentStatus.PENDING);
-            order.setRazorpayOrderId(null);
-            orderRepository.save(order);
-
-            return buildPaymentLinkResponse(order, payment);
-        } catch (RazorpayException e) {
-            String errorMsg = e.getMessage();
-            log.error("=== RAZORPAY ERROR ===");
-            log.error("Order ID: {}", orderId);
-            log.error("Key ID being used: {}", razorpayKeyId);
-            log.error("Error message: {}", errorMsg);
-            log.error("======================");
-            
-            if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication"))) {
-                throw new RuntimeException("Payment service authentication failed. Please check your Razorpay API keys in Render dashboard.");
-            }
-            throw new RuntimeException("Payment initialization failed: " + errorMsg);
+    private void validateRazorpayConfiguration() {
+        if (!hasText(razorpayKeyId) || !hasText(razorpayKeySecret) ||
+                razorpayKeyId.contains("your-razorpay-key-id") ||
+                razorpayKeySecret.contains("your-razorpay-key-secret")) {
+            throw new RuntimeException("Razorpay is not configured on the backend");
         }
     }
 
@@ -409,14 +333,6 @@ public class PaymentService {
 
     private int toSubunitAmount(Double amount) {
         return (int) Math.round(amount * 100);
-    }
-
-    private void validateRazorpayConfiguration() {
-        if (!hasText(razorpayKeyId) || !hasText(razorpayKeySecret) ||
-                razorpayKeyId.contains("your-razorpay-key-id") ||
-                razorpayKeySecret.contains("your-razorpay-key-secret")) {
-            throw new RuntimeException("Razorpay is not configured on the backend");
-        }
     }
 
     private void clearStalePaymentLink(Payment payment) {
