@@ -131,10 +131,21 @@ public class PaymentService {
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
             String errorMsg = e.getMessage();
-            log.error("Razorpay payment link error for order {}: {}", orderId, errorMsg);
-            if (errorMsg != null && errorMsg.contains("403")) {
-                log.error("403 Forbidden detected - Check Razorpay API keys");
-                throw new RuntimeException("Payment service authentication failed. Please contact support.");
+            log.error("=== RAZORPAY ERROR ===");
+            log.error("Order ID: {}", orderId);
+            log.error("Key ID being used: {}", razorpayKeyId);
+            log.error("Error message: {}", errorMsg);
+            log.error("Error HTTP Status: {}", e.getHttpStatusCode());
+            log.error("Error code: {}", e.getCode());
+            try {
+                log.error("Error response body: {}", new JSONObject(e.getMessage()).toString(2));
+            } catch (Exception ex) {
+                log.error("Could not parse error response");
+            }
+            log.error("======================");
+            
+            if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication"))) {
+                throw new RuntimeException("Payment service authentication failed. Please check your Razorpay API keys in Render dashboard.");
             }
             throw new RuntimeException("Payment initialization failed: " + errorMsg);
         }
@@ -157,9 +168,9 @@ public class PaymentService {
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
             String errorMsg = e.getMessage();
-            log.error("Razorpay payment link sync error for order {}: {}", orderId, errorMsg);
-            if (errorMsg != null && errorMsg.contains("403")) {
-                throw new RuntimeException("Payment service authentication failed. Please contact support.");
+            log.error("Razorpay sync error - Key ID: {}, Message: {}", razorpayKeyId, errorMsg);
+            if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication"))) {
+                throw new RuntimeException("Payment service authentication failed. Please check your Razorpay API keys.");
             }
             throw new RuntimeException("Failed to refresh payment status: " + errorMsg);
         }
