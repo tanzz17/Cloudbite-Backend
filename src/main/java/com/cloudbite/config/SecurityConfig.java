@@ -41,6 +41,7 @@ public class SecurityConfig {
                     "/api/auth/**",
                     "/api/public/**",
                     "/api/payments/callback",
+                    "/api/payments/verify",
                     "/ws/**",
                     "/actuator/health"
                 ).permitAll()
@@ -48,6 +49,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/kitchen/**").hasRole("KITCHEN_OWNER")
                 .requestMatchers("/api/delivery/**").hasRole("DELIVERY_PARTNER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+                .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -269,19 +269,16 @@ class PaymentController {
     }
 
     @PostMapping("/create-order")
-    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> createPaymentOrder(Principal principal, @RequestBody Map<String, Long> req) {
         return ResponseEntity.ok(paymentService.createRazorpayPaymentLink(req.get("orderId"), getUser(principal)));
     }
 
     @PostMapping("/create-link")
-    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> createPaymentLink(Principal principal, @RequestBody Map<String, Long> req) {
         return ResponseEntity.ok(paymentService.createRazorpayPaymentLink(req.get("orderId"), getUser(principal)));
     }
 
     @PostMapping("/orders/{orderId}/sync")
-    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> syncPaymentStatus(Principal principal, @PathVariable Long orderId) {
         return ResponseEntity.ok(paymentService.syncPaymentLinkStatus(orderId, getUser(principal)));
     }
