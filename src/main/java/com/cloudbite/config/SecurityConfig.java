@@ -3,7 +3,6 @@ package com.cloudbite.config;
 import com.cloudbite.security.JwtFilter;
 import com.cloudbite.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,9 +36,6 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
-    @Value("${app.cors.allowedOrigins:http://localhost:5173}")
-    private String allowedOrigins;
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -72,16 +68,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        if (allowedOrigins.contains("*")) {
-            configuration.setAllowedOriginPatterns(List.of("*"));
-        } else {
-            configuration.setAllowedOrigins(origins);
-        }
-        
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         
