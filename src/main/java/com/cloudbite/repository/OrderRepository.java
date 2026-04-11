@@ -25,6 +25,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.status IN ('READY_FOR_PICKUP','WAITING_FOR_PARTNER') AND o.deliveryPartner IS NULL ORDER BY o.createdAt ASC")
     List<Order> findAvailableOrdersForDelivery();
 
+    @Query("SELECT o FROM Order o WHERE o.status = 'PENDING' AND o.paymentMethod = 'RAZORPAY' AND o.createdAt < :threshold")
+    List<Order> findStalePendingOrders(LocalDateTime threshold);
+
     @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.status = 'DELIVERED'")
     Double getTotalRevenue();
 

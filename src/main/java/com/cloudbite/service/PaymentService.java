@@ -361,6 +361,25 @@ public class PaymentService {
         messagingTemplate.convertAndSend("/topic/kitchen/" + kitchenId + "/orders", orderId);
     }
 
+    public void markPaymentFailed(Long orderId, User customer, String reason) {
+        Order order = getOwnedRazorpayOrder(orderId, customer, true);
+        
+        if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            throw new RuntimeException("Cannot fail a completed payment");
+        }
+        
+        log.info("Marking payment as failed for order {}: {}", orderId, reason);
+        
+        order.setStatus(OrderStatus.PAYMENT_FAILED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
+        orderRepository.save(order);
+        
+        paymentRepository.findByOrderId(orderId).ifPresent(payment -> {
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+        });
+    }
+
     public boolean verifyPayment(String razorpayOrderId, String razorpayPaymentId,
                                   String razorpaySignature, Long orderId) {
         try {

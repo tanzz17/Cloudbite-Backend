@@ -212,6 +212,13 @@ class CustomerController {
     public ResponseEntity<?> syncPaymentStatus(Principal principal, @PathVariable Long orderId) {
         return ResponseEntity.ok(paymentService.syncPaymentLinkStatus(orderId, getUser(principal)));
     }
+
+    @PostMapping("/orders/{orderId}/payment-failed")
+    public ResponseEntity<?> markPaymentFailed(Principal principal, @PathVariable Long orderId,
+                                               @RequestBody Map<String, String> req) {
+        paymentService.markPaymentFailed(orderId, getUser(principal), req.getOrDefault("reason", "Payment failed or cancelled"));
+        return ResponseEntity.ok(Map.of("success", true, "message", "Order marked as payment failed"));
+    }
 }
 
 // ==================== DELIVERY CONTROLLER ====================
