@@ -142,13 +142,6 @@ public class PaymentService {
             log.error("Order ID: {}", orderId);
             log.error("Key ID being used: {}", razorpayKeyId);
             log.error("Error message: {}", errorMsg);
-            log.error("Error HTTP Status: {}", e.getHttpStatusCode());
-            log.error("Error code: {}", e.getCode());
-            try {
-                log.error("Error response body: {}", new JSONObject(e.getMessage()).toString(2));
-            } catch (Exception ex) {
-                log.error("Could not parse error response");
-            }
             log.error("======================");
             
             if (errorMsg != null && (errorMsg.contains("403") || errorMsg.contains("Bad authentication"))) {
