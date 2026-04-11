@@ -44,23 +44,30 @@ public class PaymentService {
         Payment existingPayment = paymentRepository.findByOrderId(orderId).orElse(null);
 
         try {
+            validateRazorpayConfiguration();
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
 
             if (existingPayment != null &&
                     existingPayment.getRazorpayPaymentLinkId() != null &&
                     !existingPayment.getRazorpayPaymentLinkId().isBlank()) {
-                JSONObject existingLink = razorpayClient.paymentLink
-                        .fetch(existingPayment.getRazorpayPaymentLinkId())
-                        .toJson();
-                applyPaymentLinkState(order, existingPayment, existingLink);
+                try {
+                    JSONObject existingLink = razorpayClient.paymentLink
+                            .fetch(existingPayment.getRazorpayPaymentLinkId())
+                            .toJson();
+                    applyPaymentLinkState(order, existingPayment, existingLink);
 
-                if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
-                    return buildPaymentLinkResponse(order, existingPayment);
-                }
+                    if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
+                        return buildPaymentLinkResponse(order, existingPayment);
+                    }
 
-                String linkStatus = existingLink.optString("status", "");
-                if ("created".equalsIgnoreCase(linkStatus) || "partially_paid".equalsIgnoreCase(linkStatus)) {
-                    return buildPaymentLinkResponse(order, existingPayment);
+                    String linkStatus = existingLink.optString("status", "");
+                    if ("created".equalsIgnoreCase(linkStatus) || "partially_paid".equalsIgnoreCase(linkStatus)) {
+                        return buildPaymentLinkResponse(order, existingPayment);
+                    }
+                } catch (RazorpayException e) {
+                    log.warn("Stored Razorpay payment link {} is no longer reusable for order {}: {}",
+                            existingPayment.getRazorpayPaymentLinkId(), orderId, e.getMessage());
+                    clearStalePaymentLink(existingPayment);
                 }
             }
 
@@ -73,9 +80,16 @@ public class PaymentService {
             linkRequest.put("callback_method", "get");
 
             JSONObject customerJson = new JSONObject();
-            customerJson.put("name", order.getCustomer().getName());
-            customerJson.put("email", order.getCustomer().getEmail());
-            customerJson.put("contact", order.getCustomer().getPhone());
+            if (hasText(order.getCustomer().getName())) {
+                customerJson.put("name", order.getCustomer().getName().trim());
+            }
+            if (hasText(order.getCustomer().getEmail())) {
+                customerJson.put("email", order.getCustomer().getEmail().trim());
+            }
+            String normalizedPhone = normalizePhone(order.getCustomer().getPhone());
+            if (hasText(normalizedPhone)) {
+                customerJson.put("contact", normalizedPhone);
+            }
             linkRequest.put("customer", customerJson);
 
             JSONObject notifyJson = new JSONObject();
@@ -128,6 +142,7 @@ public class PaymentService {
         }
 
         try {
+            validateRazorpayConfiguration();
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
             JSONObject paymentLinkJson = razorpayClient.paymentLink.fetch(payment.getRazorpayPaymentLinkId()).toJson();
             applyPaymentLinkState(order, payment, paymentLinkJson);
@@ -220,6 +235,36 @@ public class PaymentService {
 
     private int toSubunitAmount(Double amount) {
         return (int) Math.round(amount * 100);
+    }
+
+    private void validateRazorpayConfiguration() {
+        if (!hasText(razorpayKeyId) || !hasText(razorpayKeySecret) ||
+                razorpayKeyId.contains("your-razorpay-key-id") ||
+                razorpayKeySecret.contains("your-razorpay-key-secret")) {
+            throw new RuntimeException("Razorpay is not configured on the backend");
+        }
+    }
+
+    private void clearStalePaymentLink(Payment payment) {
+        payment.setRazorpayPaymentLinkId(null);
+        payment.setRazorpayPaymentLinkUrl(null);
+        payment.setRazorpayPaymentId(null);
+        payment.setRazorpaySignature(null);
+        payment.setPaidAt(null);
+        payment.setStatus(PaymentStatus.PENDING);
+        paymentRepository.save(payment);
+    }
+
+    private String normalizePhone(String phone) {
+        if (!hasText(phone)) {
+            return null;
+        }
+        String digitsOnly = phone.replaceAll("\\D", "");
+        return digitsOnly.isBlank() ? null : digitsOnly;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     public boolean verifyPayment(String razorpayOrderId, String razorpayPaymentId,
