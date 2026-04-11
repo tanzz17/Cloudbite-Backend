@@ -1,5 +1,6 @@
 package com.cloudbite.service;
 
+import com.cloudbite.enums.OrderStatus;
 import com.cloudbite.enums.PaymentMethod;
 import com.cloudbite.enums.PaymentStatus;
 import com.cloudbite.model.Order;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -29,6 +31,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -127,7 +130,14 @@ public class PaymentService {
 
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
-            log.error("Razorpay payment link error for order {}: {}", orderId, e.getMessage());
+            log.error("Razorpay payment link error for order {}: HTTP {}, Code: {}, Message: {}", 
+                orderId, e.getHttpStatusCode(), e.getCode(), e.getMessage());
+            log.error("Razorpay Error Response: {}", e.getMessage());
+            if (e.getHttpStatusCode() == 403) {
+                log.error("403 Forbidden - Check Razorpay API keys. Key ID being used: {}", 
+                    razorpayKeyId != null ? razorpayKeyId.substring(0, Math.min(10, razorpayKeyId.length())) + "..." : "null");
+                throw new RuntimeException("Payment service authentication failed. Please contact support.");
+            }
             throw new RuntimeException("Payment initialization failed: " + e.getMessage());
         }
     }
@@ -148,7 +158,11 @@ public class PaymentService {
             applyPaymentLinkState(order, payment, paymentLinkJson);
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
-            log.error("Razorpay payment link sync error for order {}: {}", orderId, e.getMessage());
+            log.error("Razorpay payment link sync error for order {}: HTTP {}, Code: {}, Message: {}", 
+                orderId, e.getHttpStatusCode(), e.getCode(), e.getMessage());
+            if (e.getHttpStatusCode() == 403) {
+                throw new RuntimeException("Payment service authentication failed. Please contact support.");
+            }
             throw new RuntimeException("Failed to refresh payment status: " + e.getMessage());
         }
     }
@@ -200,16 +214,25 @@ public class PaymentService {
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setRazorpayPaymentId(paymentId);
             payment.setPaidAt(LocalDateTime.now());
+            
+            paymentRepository.save(payment);
+            orderRepository.save(order);
+            
+            notifyKitchenAboutOrder(order.getId(), order.getKitchen().getId());
         } else if ("cancelled".equalsIgnoreCase(linkStatus) || "expired".equalsIgnoreCase(linkStatus)) {
             order.setPaymentStatus(PaymentStatus.FAILED);
+            order.setStatus(OrderStatus.PAYMENT_FAILED);
             payment.setStatus(PaymentStatus.FAILED);
+            
+            paymentRepository.save(payment);
+            orderRepository.save(order);
         } else {
             order.setPaymentStatus(PaymentStatus.PENDING);
             payment.setStatus(PaymentStatus.PENDING);
+            
+            paymentRepository.save(payment);
+            orderRepository.save(order);
         }
-
-        paymentRepository.save(payment);
-        orderRepository.save(order);
     }
 
     private JSONObject getCapturedPayment(JSONObject paymentLinkJson) {
@@ -265,6 +288,10 @@ public class PaymentService {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private void notifyKitchenAboutOrder(Long orderId, Long kitchenId) {
+        messagingTemplate.convertAndSend("/topic/kitchen/" + kitchenId + "/orders", orderId);
     }
 
     public boolean verifyPayment(String razorpayOrderId, String razorpayPaymentId,

@@ -88,8 +88,11 @@ public class OrderService {
         // Clear cart
         cartRepository.findByUserId(customer.getId()).ifPresent(cartRepository::delete);
 
-        // Notify kitchen via WebSocket
-        messagingTemplate.convertAndSend("/topic/kitchen/" + kitchenId + "/orders", savedOrder.getId());
+        // For COD orders, notify kitchen immediately
+        // For RAZORPAY orders, kitchen will be notified only after successful payment (in PaymentService)
+        if (paymentMethod == PaymentMethod.COD) {
+            messagingTemplate.convertAndSend("/topic/kitchen/" + kitchenId + "/orders", savedOrder.getId());
+        }
 
         return savedOrder;
     }
@@ -188,7 +191,7 @@ public class OrderService {
     public List<Order> getOrdersForKitchen(User kitchenOwner) {
         Kitchen kitchen = kitchenRepository.findByOwner(kitchenOwner)
                 .orElseThrow(() -> new RuntimeException("Kitchen not found"));
-        return orderRepository.findByKitchenIdOrderByCreatedAtDesc(kitchen.getId());
+        return orderRepository.findActiveOrdersByKitchenId(kitchen.getId());
     }
 
     public List<Order> getOrdersByStatus(User kitchenOwner, OrderStatus status) {

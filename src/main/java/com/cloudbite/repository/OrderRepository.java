@@ -19,6 +19,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByDeliveryPartnerIdAndStatusOrderByCreatedAtDesc(Long deliveryPartnerId, OrderStatus status);
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    @Query("SELECT o FROM Order o WHERE o.kitchen.id = :kitchenId AND o.status NOT IN ('PAYMENT_FAILED', 'CANCELLED') ORDER BY o.createdAt DESC")
+    List<Order> findActiveOrdersByKitchenId(Long kitchenId);
+
     @Query("SELECT o FROM Order o WHERE o.status IN ('READY_FOR_PICKUP','WAITING_FOR_PARTNER') AND o.deliveryPartner IS NULL ORDER BY o.createdAt ASC")
     List<Order> findAvailableOrdersForDelivery();
 
