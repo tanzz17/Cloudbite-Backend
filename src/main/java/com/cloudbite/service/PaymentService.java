@@ -130,15 +130,13 @@ public class PaymentService {
 
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
-            log.error("Razorpay payment link error for order {}: HTTP {}, Code: {}, Message: {}", 
-                orderId, e.getHttpStatusCode(), e.getCode(), e.getMessage());
-            log.error("Razorpay Error Response: {}", e.getMessage());
-            if (e.getHttpStatusCode() == 403) {
-                log.error("403 Forbidden - Check Razorpay API keys. Key ID being used: {}", 
-                    razorpayKeyId != null ? razorpayKeyId.substring(0, Math.min(10, razorpayKeyId.length())) + "..." : "null");
+            String errorMsg = e.getMessage();
+            log.error("Razorpay payment link error for order {}: {}", orderId, errorMsg);
+            if (errorMsg != null && errorMsg.contains("403")) {
+                log.error("403 Forbidden detected - Check Razorpay API keys");
                 throw new RuntimeException("Payment service authentication failed. Please contact support.");
             }
-            throw new RuntimeException("Payment initialization failed: " + e.getMessage());
+            throw new RuntimeException("Payment initialization failed: " + errorMsg);
         }
     }
 
@@ -158,12 +156,12 @@ public class PaymentService {
             applyPaymentLinkState(order, payment, paymentLinkJson);
             return buildPaymentLinkResponse(order, payment);
         } catch (RazorpayException e) {
-            log.error("Razorpay payment link sync error for order {}: HTTP {}, Code: {}, Message: {}", 
-                orderId, e.getHttpStatusCode(), e.getCode(), e.getMessage());
-            if (e.getHttpStatusCode() == 403) {
+            String errorMsg = e.getMessage();
+            log.error("Razorpay payment link sync error for order {}: {}", orderId, errorMsg);
+            if (errorMsg != null && errorMsg.contains("403")) {
                 throw new RuntimeException("Payment service authentication failed. Please contact support.");
             }
-            throw new RuntimeException("Failed to refresh payment status: " + e.getMessage());
+            throw new RuntimeException("Failed to refresh payment status: " + errorMsg);
         }
     }
 
