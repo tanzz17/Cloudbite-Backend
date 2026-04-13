@@ -28,8 +28,10 @@ public class AddressService {
     public UserAddress addAddress(User user, Map<String, Object> request) {
         String label = (String) request.get("label");
         String fullAddress = (String) request.get("fullAddress");
-        Double latitude = ((Number) request.get("latitude")).doubleValue();
-        Double longitude = ((Number) request.get("longitude")).doubleValue();
+        String receiverName = (String) request.get("receiverName");
+        String receiverPhone = (String) request.get("receiverPhone");
+        Double latitude = request.get("latitude") != null ? ((Number) request.get("latitude")).doubleValue() : null;
+        Double longitude = request.get("longitude") != null ? ((Number) request.get("longitude")).doubleValue() : null;
         Boolean isDefault = request.containsKey("isDefault") && (Boolean) request.get("isDefault");
 
         if (isDefault != null && isDefault) {
@@ -47,6 +49,8 @@ public class AddressService {
                 .user(user)
                 .label(label)
                 .fullAddress(fullAddress)
+                .receiverName(receiverName)
+                .receiverPhone(receiverPhone)
                 .latitude(latitude)
                 .longitude(longitude)
                 .isDefault(makeDefault)
@@ -70,10 +74,16 @@ public class AddressService {
         if (request.containsKey("fullAddress")) {
             address.setFullAddress((String) request.get("fullAddress"));
         }
-        if (request.containsKey("latitude")) {
+        if (request.containsKey("receiverName")) {
+            address.setReceiverName((String) request.get("receiverName"));
+        }
+        if (request.containsKey("receiverPhone")) {
+            address.setReceiverPhone((String) request.get("receiverPhone"));
+        }
+        if (request.containsKey("latitude") && request.get("latitude") != null) {
             address.setLatitude(((Number) request.get("latitude")).doubleValue());
         }
-        if (request.containsKey("longitude")) {
+        if (request.containsKey("longitude") && request.get("longitude") != null) {
             address.setLongitude(((Number) request.get("longitude")).doubleValue());
         }
         if (request.containsKey("isDefault") && (Boolean) request.get("isDefault")) {

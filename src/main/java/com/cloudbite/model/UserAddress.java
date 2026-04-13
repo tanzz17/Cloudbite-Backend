@@ -30,10 +30,12 @@ public class UserAddress {
     @Column(nullable = false, length = 1000)
     private String fullAddress;
 
-    @Column(nullable = false)
+    private String receiverName;
+
+    private String receiverPhone;
+
     private Double latitude;
 
-    @Column(nullable = false)
     private Double longitude;
 
     @Builder.Default
