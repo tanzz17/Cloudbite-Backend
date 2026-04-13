@@ -1,0 +1,112 @@
+package com.cloudbite.service;
+
+import com.cloudbite.model.User;
+import com.cloudbite.model.UserAddress;
+import com.cloudbite.repository.UserAddressRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class AddressService {
+
+    private final UserAddressRepository userAddressRepository;
+
+    public List<UserAddress> getUserAddresses(Long userId) {
+        return userAddressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId);
+    }
+
+    public UserAddress getDefaultAddress(Long userId) {
+        return userAddressRepository.findByUserIdAndIsDefaultTrue(userId).orElse(null);
+    }
+
+    @Transactional
+    public UserAddress addAddress(User user, Map<String, Object> request) {
+        String label = (String) request.get("label");
+        String fullAddress = (String) request.get("fullAddress");
+        Double latitude = ((Number) request.get("latitude")).doubleValue();
+        Double longitude = ((Number) request.get("longitude")).doubleValue();
+        Boolean isDefault = request.containsKey("isDefault") && (Boolean) request.get("isDefault");
+
+        if (isDefault != null && isDefault) {
+            userAddressRepository.clearDefaultAddress(user.getId());
+        }
+
+        boolean makeDefault = false;
+        if (isDefault != null && isDefault) {
+            makeDefault = true;
+        } else if (userAddressRepository.countByUserId(user.getId()) == 0) {
+            makeDefault = true;
+        }
+
+        UserAddress address = UserAddress.builder()
+                .user(user)
+                .label(label)
+                .fullAddress(fullAddress)
+                .latitude(latitude)
+                .longitude(longitude)
+                .isDefault(makeDefault)
+                .build();
+
+        return userAddressRepository.save(address);
+    }
+
+    @Transactional
+    public UserAddress updateAddress(Long addressId, User user, Map<String, Object> request) {
+        UserAddress address = userAddressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        if (!address.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (request.containsKey("label")) {
+            address.setLabel((String) request.get("label"));
+        }
+        if (request.containsKey("fullAddress")) {
+            address.setFullAddress((String) request.get("fullAddress"));
+        }
+        if (request.containsKey("latitude")) {
+            address.setLatitude(((Number) request.get("latitude")).doubleValue());
+        }
+        if (request.containsKey("longitude")) {
+            address.setLongitude(((Number) request.get("longitude")).doubleValue());
+        }
+        if (request.containsKey("isDefault") && (Boolean) request.get("isDefault")) {
+            userAddressRepository.clearDefaultAddress(user.getId());
+            address.setIsDefault(true);
+        }
+
+        return userAddressRepository.save(address);
+    }
+
+    @Transactional
+    public void setDefaultAddress(Long addressId, User user) {
+        UserAddress address = userAddressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        if (!address.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        userAddressRepository.clearDefaultAddress(user.getId());
+        address.setIsDefault(true);
+        userAddressRepository.save(address);
+    }
+
+    @Transactional
+    public void deleteAddress(Long addressId, User user) {
+        UserAddress address = userAddressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        if (!address.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        userAddressRepository.delete(address);
+    }
+}

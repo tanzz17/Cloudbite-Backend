@@ -126,6 +126,7 @@ class CustomerController {
     private final CartService cartService;
     private final KitchenService kitchenService;
     private final PaymentService paymentService;
+    private final AddressService addressService;
     private final UserRepository userRepository;
     private final com.cloudbite.repository.KitchenRepository kitchenRepository;
 
@@ -135,8 +136,29 @@ class CustomerController {
     }
 
     @GetMapping("/kitchens")
-    public ResponseEntity<?> getKitchens() {
-        return ResponseEntity.ok(kitchenRepository.findByIsActiveTrue());
+    public ResponseEntity<?> getKitchens(@RequestParam(required = false) Double lat, @RequestParam(required = false) Double lng) {
+        var kitchens = kitchenRepository.findByIsActiveTrue();
+        if (lat != null && lng != null) {
+            kitchens.forEach(k -> {
+                if (k.getLatitude() != null && k.getLongitude() != null) {
+                    double distance = calculateDistance(lat, lng, k.getLatitude(), k.getLongitude());
+                    k.setDeliveryRadius(distance);
+                }
+            });
+            kitchens.sort((a, b) -> Double.compare(a.getDeliveryRadius() != null ? a.getDeliveryRadius() : 999, b.getDeliveryRadius() != null ? b.getDeliveryRadius() : 999));
+        }
+        return ResponseEntity.ok(kitchens);
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371;
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c * 10.0) / 10.0;
     }
 
     @GetMapping("/kitchens/search")
@@ -218,6 +240,40 @@ class CustomerController {
                                                @RequestBody Map<String, String> req) {
         paymentService.markPaymentFailed(orderId, getUser(principal), req.getOrDefault("reason", "Payment failed or cancelled"));
         return ResponseEntity.ok(Map.of("success", true, "message", "Order marked as payment failed"));
+    }
+
+    // Address Management
+    @GetMapping("/addresses")
+    public ResponseEntity<?> getAddresses(Principal principal) {
+        return ResponseEntity.ok(addressService.getUserAddresses(getUser(principal).getId()));
+    }
+
+    @GetMapping("/addresses/default")
+    public ResponseEntity<?> getDefaultAddress(Principal principal) {
+        return ResponseEntity.ok(addressService.getDefaultAddress(getUser(principal).getId()));
+    }
+
+    @PostMapping("/addresses")
+    public ResponseEntity<?> addAddress(Principal principal, @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(addressService.addAddress(getUser(principal), request));
+    }
+
+    @PutMapping("/addresses/{addressId}")
+    public ResponseEntity<?> updateAddress(Principal principal, @PathVariable Long addressId,
+                                          @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(addressService.updateAddress(addressId, getUser(principal), request));
+    }
+
+    @PatchMapping("/addresses/{addressId}/default")
+    public ResponseEntity<?> setDefaultAddress(Principal principal, @PathVariable Long addressId) {
+        addressService.setDefaultAddress(addressId, getUser(principal));
+        return ResponseEntity.ok(Map.of("success", true, "message", "Default address updated"));
+    }
+
+    @DeleteMapping("/addresses/{addressId}")
+    public ResponseEntity<?> deleteAddress(Principal principal, @PathVariable Long addressId) {
+        addressService.deleteAddress(addressId, getUser(principal));
+        return ResponseEntity.ok(Map.of("success", true, "message", "Address deleted"));
     }
 }
 
