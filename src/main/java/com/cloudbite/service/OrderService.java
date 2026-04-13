@@ -163,11 +163,45 @@ public class OrderService {
         if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
             throw new RuntimeException("Unauthorized");
         }
+        if (order.getStatus() != OrderStatus.PICKED_UP && order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
+            throw new RuntimeException("Order must be picked up before marking delivered");
+        }
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now());
         if (order.getPaymentMethod() == PaymentMethod.COD) {
             order.setPaymentStatus(PaymentStatus.COMPLETED);
         }
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order startTrip(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED) {
+            throw new RuntimeException("Order must be assigned before starting trip");
+        }
+        order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order pickedUp(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
+            throw new RuntimeException("Order must be out for delivery before picking up");
+        }
+        order.setStatus(OrderStatus.PICKED_UP);
+        order.setPickedUpAt(LocalDateTime.now());
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
         return saved;

@@ -313,6 +313,16 @@ class DeliveryController {
         return ResponseEntity.ok(orderService.acceptDelivery(orderId, getUser(principal)));
     }
 
+    @PatchMapping("/orders/{orderId}/start-trip")
+    public ResponseEntity<?> startTrip(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.startTrip(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/picked-up")
+    public ResponseEntity<?> pickedUp(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.pickedUp(orderId, getUser(principal)));
+    }
+
     @PatchMapping("/orders/{orderId}/delivered")
     public ResponseEntity<?> markDelivered(Principal principal, @PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.markDelivered(orderId, getUser(principal)));

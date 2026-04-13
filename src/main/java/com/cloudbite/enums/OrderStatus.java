@@ -10,6 +10,7 @@ public enum OrderStatus {
     PARTNER_ASSIGNED,
     HANDOVER,
     OUT_FOR_DELIVERY,
+    PICKED_UP,
     DELIVERED,
     CANCELLED
 }
