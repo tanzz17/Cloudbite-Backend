@@ -336,6 +336,17 @@ class DeliveryController {
         deliveryService.updateLocation(getUser(principal), orderId, lat, lng);
         return ResponseEntity.ok(Map.of("message", "Location updated"));
     }
+
+    @GetMapping("/debug/me")
+    public ResponseEntity<?> debugMe(Principal principal) {
+        User user = getUser(principal);
+        return ResponseEntity.ok(Map.of(
+            "id", user.getId(),
+            "email", user.getEmail(),
+            "role", user.getRole().name(),
+            "isActive", user.getIsActive()
+        ));
+    }
 }
 
 // ==================== PAYMENT CONTROLLER ====================
