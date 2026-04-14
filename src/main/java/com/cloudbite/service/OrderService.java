@@ -151,7 +151,7 @@ public class OrderService {
             throw new RuntimeException("Order is not available for pickup");
         }
         order.setDeliveryPartner(deliveryPartner);
-        order.setStatus(OrderStatus.PARTNER_ASSIGNED);
+        order.setStatus(OrderStatus.ACCEPTED);
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
         return saved;
