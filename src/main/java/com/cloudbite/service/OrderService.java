@@ -44,9 +44,9 @@ public class OrderService {
                 .orderNumber("CB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .customer(customer)
                 .kitchen(kitchen)
-                .status(OrderStatus.PENDING)
+                .status(OrderStatus.PLACED)
                 .paymentMethod(paymentMethod)
-                .paymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
+                .paymentStatus(PaymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
                 .deliveryAddress((String) request.get("deliveryAddress"))
                 .deliveryLatitude(request.get("deliveryLatitude") != null ? ((Number) request.get("deliveryLatitude")).doubleValue() : null)
                 .deliveryLongitude(request.get("deliveryLongitude") != null ? ((Number) request.get("deliveryLongitude")).doubleValue() : null)
@@ -85,11 +85,8 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
-        // Clear cart
         cartRepository.findByUserId(customer.getId()).ifPresent(cartRepository::delete);
 
-        // For COD orders, notify kitchen immediately
-        // For RAZORPAY orders, kitchen will be notified only after successful payment (in PaymentService)
         if (paymentMethod == PaymentMethod.COD) {
             messagingTemplate.convertAndSend("/topic/kitchen/" + kitchenId + "/orders", savedOrder.getId());
         }
@@ -118,28 +115,11 @@ public class OrderService {
 
     public Order markReadyForPickup(Long orderId, User kitchenOwner) {
         Order order = getOrderForKitchen(orderId, kitchenOwner);
-        order.setStatus(OrderStatus.WAITING_FOR_PARTNER);
+        order.setStatus(OrderStatus.READY_FOR_PICKUP);
         order.setReadyAt(LocalDateTime.now());
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
-        // Notify available delivery partners
         messagingTemplate.convertAndSend("/topic/delivery/available-orders", saved.getId());
-        return saved;
-    }
-
-    public Order markHandover(Long orderId, User kitchenOwner) {
-        Order order = getOrderForKitchen(orderId, kitchenOwner);
-        order.setStatus(OrderStatus.HANDOVER);
-        Order saved = orderRepository.save(order);
-        notifyOrderUpdate(saved);
-        return saved;
-    }
-
-    public Order markOutForDelivery(Long orderId, User kitchenOwner) {
-        Order order = getOrderForKitchen(orderId, kitchenOwner);
-        order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
-        Order saved = orderRepository.save(order);
-        notifyOrderUpdate(saved);
         return saved;
     }
 
@@ -147,11 +127,11 @@ public class OrderService {
     public Order acceptDelivery(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (order.getStatus() != OrderStatus.WAITING_FOR_PARTNER) {
-            throw new RuntimeException("Order is not available for pickup");
+        if (order.getStatus() != OrderStatus.READY_FOR_PICKUP) {
+            throw new RuntimeException("Order is not ready for pickup");
         }
         order.setDeliveryPartner(deliveryPartner);
-        order.setStatus(OrderStatus.PARTNER_ASSIGNED);
+        order.setStatus(OrderStatus.ACCEPTED);
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
         return saved;
@@ -160,11 +140,8 @@ public class OrderService {
     public Order markDelivered(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
             throw new RuntimeException("Unauthorized");
-        }
-        if (order.getStatus() != OrderStatus.PICKED_UP && order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
-            throw new RuntimeException("Order must be picked up before marking delivered");
         }
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now());
@@ -180,16 +157,29 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         
-        if (order.getDeliveryPartner() == null) {
-            throw new RuntimeException("No delivery partner assigned to this order");
-        }
-        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
             throw new RuntimeException("Unauthorized - you are not assigned to this order");
         }
-        if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED) {
-            throw new RuntimeException("Order must be assigned before starting trip. Current status: " + order.getStatus());
+        if (order.getStatus() != OrderStatus.ACCEPTED) {
+            throw new RuntimeException("Order must be accepted first. Current status: " + order.getStatus());
         }
-        order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
+        order.setStatus(OrderStatus.HEADING_TO_RESTAURANT);
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order arrivedAtRestaurant(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.HEADING_TO_RESTAURANT) {
+            throw new RuntimeException("Must start trip first");
+        }
+        order.setStatus(OrderStatus.ARRIVED_AT_RESTAURANT);
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
         return saved;
@@ -199,17 +189,27 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         
-        if (order.getDeliveryPartner() == null) {
-            throw new RuntimeException("No delivery partner assigned to this order");
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
         }
-        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
-            throw new RuntimeException("Unauthorized - you are not assigned to this order");
-        }
-        if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
-            throw new RuntimeException("Order must be out for delivery (start trip first) before picking up. Current status: " + order.getStatus());
+        if (order.getStatus() != OrderStatus.ARRIVED_AT_RESTAURANT) {
+            throw new RuntimeException("Must arrive at restaurant first");
         }
         order.setStatus(OrderStatus.PICKED_UP);
         order.setPickedUpAt(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order headingToCustomer(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (order.getDeliveryPartner() == null || !order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        order.setStatus(OrderStatus.HEADING_TO_CUSTOMER);
         Order saved = orderRepository.save(order);
         notifyOrderUpdate(saved);
         return saved;
@@ -286,7 +286,7 @@ public class OrderService {
     }
 
     private Order cancelOrderInternal(Order order, String reason) {
-        if (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
+        if (order.getStatus() == OrderStatus.PICKED_UP || order.getStatus() == OrderStatus.HEADING_TO_CUSTOMER || order.getStatus() == OrderStatus.DELIVERED) {
             throw new RuntimeException("Cannot cancel order at this stage");
         }
 
@@ -304,17 +304,14 @@ public class OrderService {
     }
 
     private void notifyOrderUpdate(Order order) {
-        // Notify customer
         messagingTemplate.convertAndSend(
                 "/topic/order/" + order.getId() + "/status",
                 Map.of("orderId", order.getId(), "status", order.getStatus().name())
         );
-        // Notify kitchen
         messagingTemplate.convertAndSend(
                 "/topic/kitchen/" + order.getKitchen().getId() + "/order-update",
                 Map.of("orderId", order.getId(), "status", order.getStatus().name())
         );
-        // Notify delivery partner if assigned
         if (order.getDeliveryPartner() != null) {
             messagingTemplate.convertAndSend(
                     "/topic/delivery/" + order.getDeliveryPartner().getId() + "/order-update",

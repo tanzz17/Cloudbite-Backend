@@ -318,9 +318,19 @@ class DeliveryController {
         return ResponseEntity.ok(orderService.startTrip(orderId, getUser(principal)));
     }
 
+    @PatchMapping("/orders/{orderId}/arrived")
+    public ResponseEntity<?> arrivedAtRestaurant(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.arrivedAtRestaurant(orderId, getUser(principal)));
+    }
+
     @PatchMapping("/orders/{orderId}/picked-up")
     public ResponseEntity<?> pickedUp(Principal principal, @PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.pickedUp(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/heading-to-customer")
+    public ResponseEntity<?> headingToCustomer(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.headingToCustomer(orderId, getUser(principal)));
     }
 
     @PatchMapping("/orders/{orderId}/delivered")
