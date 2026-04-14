@@ -34,6 +34,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final UserDetailsServiceImpl userDetailsService;
     private final AuthenticationProvider authenticationProvider;
 
     @Bean
