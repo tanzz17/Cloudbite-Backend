@@ -180,7 +180,7 @@ public class OrderService {
         if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
             throw new RuntimeException("Unauthorized");
         }
-        if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED) {
+        if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED && order.getStatus() != OrderStatus.ACCEPTED) {
             throw new RuntimeException("Order must be assigned before starting trip");
         }
         order.setStatus(OrderStatus.HEADING_TO_RESTAURANT);
