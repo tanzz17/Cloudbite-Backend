@@ -16,7 +16,6 @@ import java.security.Principal;
 @RestController
 @RequestMapping("/api/kitchen")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('KITCHEN_OWNER')")
 class KitchenController {
 
     private final KitchenService kitchenService;
@@ -120,7 +119,6 @@ class KitchenController {
 @RestController
 @RequestMapping("/api/customer")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('CUSTOMER')")
 class CustomerController {
 
     private final OrderService orderService;
@@ -282,7 +280,6 @@ class CustomerController {
 @RestController
 @RequestMapping("/api/delivery")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('DELIVERY_PARTNER')")
 class DeliveryController {
 
     private final DeliveryService deliveryService;
