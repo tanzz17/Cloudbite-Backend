@@ -440,6 +440,18 @@ class PublicController {
     public ResponseEntity<?> testRazorpayConnection() {
         return ResponseEntity.ok(paymentService.testRazorpayConnection());
     }
+
+    @GetMapping("/check-user/{email}")
+    public ResponseEntity<?> checkUserRole(@PathVariable String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> ResponseEntity.ok(Map.of(
+                        "email", user.getEmail(),
+                        "name", user.getName(),
+                        "role", user.getRole(),
+                        "isActive", user.getIsActive()
+                )))
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
 
 // ==================== PROFILE CONTROLLER ====================
