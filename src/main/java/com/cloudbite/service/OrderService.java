@@ -147,12 +147,14 @@ public class OrderService {
     public Order acceptDelivery(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.CANCELLED) {
-            throw new RuntimeException("Order is already delivered or cancelled");
+        
+        if (order.getDeliveryPartner() != null && order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            return order;
         }
         if (order.getDeliveryPartner() != null) {
-            throw new RuntimeException("Order already has a delivery partner");
+            throw new RuntimeException("Order already assigned to another partner");
         }
+        
         order.setDeliveryPartner(deliveryPartner);
         order.setStatus(OrderStatus.ACCEPTED);
         Order saved = orderRepository.save(order);
