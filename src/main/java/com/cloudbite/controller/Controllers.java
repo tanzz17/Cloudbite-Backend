@@ -92,6 +92,16 @@ class KitchenController {
         return ResponseEntity.ok(orderService.markReadyForPickup(orderId, getUser(principal)));
     }
 
+    @PatchMapping("/orders/{orderId}/handover")
+    public ResponseEntity<?> markHandover(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.markHandover(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/out-for-delivery")
+    public ResponseEntity<?> markOutForDelivery(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.markOutForDelivery(orderId, getUser(principal)));
+    }
+
     @PatchMapping("/orders/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(Principal principal, @PathVariable Long orderId,
                                          @RequestBody Map<String, String> req) {
@@ -122,17 +132,7 @@ class CustomerController {
 
     private User getUser(Principal principal) {
         return userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getName()));
-    }
-
-    @GetMapping("/debug/me")
-    public ResponseEntity<?> debugMe(Principal principal) {
-        User user = getUser(principal);
-        return ResponseEntity.ok(Map.of(
-            "id", user.getId(),
-            "email", user.getEmail(),
-            "role", user.getRole().name()
-        ));
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     @GetMapping("/kitchens")
@@ -313,26 +313,6 @@ class DeliveryController {
         return ResponseEntity.ok(orderService.acceptDelivery(orderId, getUser(principal)));
     }
 
-    @PatchMapping("/orders/{orderId}/start-trip")
-    public ResponseEntity<?> startTrip(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.startTrip(orderId, getUser(principal)));
-    }
-
-    @PatchMapping("/orders/{orderId}/arrived")
-    public ResponseEntity<?> arrivedAtRestaurant(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.arrivedAtRestaurant(orderId, getUser(principal)));
-    }
-
-    @PatchMapping("/orders/{orderId}/picked-up")
-    public ResponseEntity<?> pickedUp(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.pickedUp(orderId, getUser(principal)));
-    }
-
-    @PatchMapping("/orders/{orderId}/heading-to-customer")
-    public ResponseEntity<?> headingToCustomer(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.headingToCustomer(orderId, getUser(principal)));
-    }
-
     @PatchMapping("/orders/{orderId}/delivered")
     public ResponseEntity<?> markDelivered(Principal principal, @PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.markDelivered(orderId, getUser(principal)));
@@ -345,17 +325,6 @@ class DeliveryController {
         double lng = ((Number) req.get("longitude")).doubleValue();
         deliveryService.updateLocation(getUser(principal), orderId, lat, lng);
         return ResponseEntity.ok(Map.of("message", "Location updated"));
-    }
-
-    @GetMapping("/debug/me")
-    public ResponseEntity<?> debugMe(Principal principal) {
-        User user = getUser(principal);
-        return ResponseEntity.ok(Map.of(
-            "id", user.getId(),
-            "email", user.getEmail(),
-            "role", user.getRole().name(),
-            "isActive", user.getIsActive()
-        ));
     }
 }
 
