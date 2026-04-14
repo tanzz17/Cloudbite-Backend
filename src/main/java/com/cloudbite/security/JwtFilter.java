@@ -43,9 +43,19 @@ public class JwtFilter extends OncePerRequestFilter {
             jwt = authHeader.substring(7);
             try {
                 username = jwtUtil.extractUsername(jwt);
-                role = jwtUtil.extractClaim(jwt, claims -> claims.get("role", String.class));
                 userId = jwtUtil.extractClaim(jwt, claims -> claims.get("userId", Long.class));
-                log.info("JWT - username: {}, role: {}, userId: {}", username, role, userId);
+                
+                // Get role from JWT claims - with null safety
+                try {
+                    role = jwtUtil.extractClaim(jwt, claims -> {
+                        Object r = claims.get("role");
+                        return r != null ? r.toString() : null;
+                    });
+                } catch (Exception e) {
+                    log.debug("No role in JWT, will use DB");
+                }
+                
+                log.info("JWT parsed - username: {}, role: {}, userId: {}", username, role, userId);
             } catch (Exception e) {
                 log.warn("Invalid JWT token: {}", e.getMessage());
             }
