@@ -1,7 +1,8 @@
 package com.cloudbite.enums;
 
 public enum OrderStatus {
-    PLACED,
+    PENDING,
+    PAYMENT_FAILED,
     CONFIRMED,
     PREPARING,
     READY_FOR_PICKUP,

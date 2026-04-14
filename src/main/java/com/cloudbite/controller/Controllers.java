@@ -92,16 +92,6 @@ class KitchenController {
         return ResponseEntity.ok(orderService.markReadyForPickup(orderId, getUser(principal)));
     }
 
-    @PatchMapping("/orders/{orderId}/handover")
-    public ResponseEntity<?> markHandover(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.markHandover(orderId, getUser(principal)));
-    }
-
-    @PatchMapping("/orders/{orderId}/out-for-delivery")
-    public ResponseEntity<?> markOutForDelivery(Principal principal, @PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.markOutForDelivery(orderId, getUser(principal)));
-    }
-
     @PatchMapping("/orders/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(Principal principal, @PathVariable Long orderId,
                                          @RequestBody Map<String, String> req) {
