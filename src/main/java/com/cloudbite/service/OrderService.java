@@ -147,7 +147,7 @@ public class OrderService {
     public Order acceptDelivery(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        if (order.getStatus() != OrderStatus.WAITING_FOR_PARTNER) {
+        if (order.getStatus() != OrderStatus.WAITING_FOR_PARTNER && order.getStatus() != OrderStatus.READY_FOR_PICKUP) {
             throw new RuntimeException("Order is not available for pickup");
         }
         order.setDeliveryPartner(deliveryPartner);
