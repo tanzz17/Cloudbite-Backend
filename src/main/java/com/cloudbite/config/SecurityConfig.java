@@ -48,13 +48,14 @@ public class SecurityConfig {
                     "/api/public/**",
                     "/api/payments/callback",
                     "/api/payments/verify",
+                    "/api/tracking/**",
                     "/ws/**",
                     "/actuator/health"
                 ).permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/kitchen/**").hasRole("KITCHEN_OWNER")
-                .requestMatchers("/api/delivery/**").hasRole("DELIVERY_PARTNER")
-                .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers("/api/kitchen/**").hasAuthority("ROLE_KITCHEN_OWNER")
+                .requestMatchers("/api/delivery/**").hasAuthority("ROLE_DELIVERY_PARTNER")
+                .requestMatchers("/api/customer/**").hasAuthority("ROLE_CUSTOMER")
                 .requestMatchers("/api/payments/**").authenticated()
                 .anyRequest().authenticated()
             )
