@@ -46,7 +46,7 @@ public class OrderService {
                 .kitchen(kitchen)
                 .status(OrderStatus.PLACED)
                 .paymentMethod(paymentMethod)
-                .paymentStatus(PaymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
+                .paymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
                 .deliveryAddress((String) request.get("deliveryAddress"))
                 .deliveryLatitude(request.get("deliveryLatitude") != null ? ((Number) request.get("deliveryLatitude")).doubleValue() : null)
                 .deliveryLongitude(request.get("deliveryLongitude") != null ? ((Number) request.get("deliveryLongitude")).doubleValue() : null)
