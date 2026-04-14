@@ -179,11 +179,15 @@ public class OrderService {
     public Order startTrip(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (order.getDeliveryPartner() == null) {
+            throw new RuntimeException("No delivery partner assigned to this order");
+        }
         if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
-            throw new RuntimeException("Unauthorized");
+            throw new RuntimeException("Unauthorized - you are not assigned to this order");
         }
         if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED) {
-            throw new RuntimeException("Order must be assigned before starting trip");
+            throw new RuntimeException("Order must be assigned before starting trip. Current status: " + order.getStatus());
         }
         order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
         Order saved = orderRepository.save(order);
@@ -194,11 +198,15 @@ public class OrderService {
     public Order pickedUp(Long orderId, User deliveryPartner) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (order.getDeliveryPartner() == null) {
+            throw new RuntimeException("No delivery partner assigned to this order");
+        }
         if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
-            throw new RuntimeException("Unauthorized");
+            throw new RuntimeException("Unauthorized - you are not assigned to this order");
         }
         if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
-            throw new RuntimeException("Order must be out for delivery before picking up");
+            throw new RuntimeException("Order must be out for delivery (start trip first) before picking up. Current status: " + order.getStatus());
         }
         order.setStatus(OrderStatus.PICKED_UP);
         order.setPickedUpAt(LocalDateTime.now());
