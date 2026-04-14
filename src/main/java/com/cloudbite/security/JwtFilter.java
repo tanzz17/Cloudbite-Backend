@@ -1,6 +1,8 @@
 package com.cloudbite.security;
 
 import com.cloudbite.enums.Role;
+import com.cloudbite.model.User;
+import com.cloudbite.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,7 +26,7 @@ import java.util.List;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -35,39 +37,57 @@ public class JwtFilter extends OncePerRequestFilter {
         String username = null;
         String jwt = null;
         String role = null;
+        Long userId = null;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
             try {
                 username = jwtUtil.extractUsername(jwt);
                 role = jwtUtil.extractClaim(jwt, claims -> claims.get("role", String.class));
+                userId = jwtUtil.extractClaim(jwt, claims -> claims.get("userId", Long.class));
+                log.info("JWT - username: {}, role: {}, userId: {}", username, role, userId);
             } catch (Exception e) {
                 log.warn("Invalid JWT token: {}", e.getMessage());
             }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            
-            List<SimpleGrantedAuthority> authorities;
-            if (role != null) {
-                try {
-                    Role userRole = Role.valueOf(role);
-                    authorities = List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name()));
-                } catch (Exception e) {
-                    authorities = List.of();
+            try {
+                User user = userRepository.findByEmail(username).orElse(null);
+                if (user == null) {
+                    log.warn("User not found: {}", username);
+                    filterChain.doFilter(request, response);
+                    return;
                 }
-            } else {
-                authorities = userDetails.getAuthorities().stream()
-                    .map(auth -> new SimpleGrantedAuthority(auth.getAuthority()))
-                    .toList();
-            }
-            
-            if (jwtUtil.validateToken(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                log.info("Found user: {} with role: {}", user.getEmail(), user.getRole());
+                
+                List<SimpleGrantedAuthority> authorities;
+                if (role != null) {
+                    authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                    log.info("Using role from JWT: ROLE_{}", role);
+                } else {
+                    authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+                    log.info("Using role from DB: ROLE_{}", user.getRole().name());
+                }
+
+                UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getEmail())
+                    .password(user.getPassword())
+                    .authorities(authorities)
+                    .build();
+
+                if (jwtUtil.validateToken(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.info("Authentication successful for: {}", username);
+                } else {
+                    log.warn("Token validation failed for: {}", username);
+                }
+            } catch (Exception e) {
+                log.error("Error in JWT filter: {}", e.getMessage(), e);
             }
         }
 
