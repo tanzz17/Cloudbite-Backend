@@ -300,6 +300,12 @@ public class OrderService {
                 org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
     }
 
+    public long clearAllOrders() {
+        long count = orderRepository.count();
+        orderRepository.deleteAll();
+        return count;
+    }
+
     public Double getKitchenRevenue(Long kitchenId) {
         Double revenue = orderRepository.getKitchenRevenue(kitchenId);
         return revenue != null ? revenue : 0.0;

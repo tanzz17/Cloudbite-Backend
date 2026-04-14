@@ -88,4 +88,10 @@ public class AdminController {
     public ResponseEntity<?> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
+
+    @DeleteMapping("/orders/clear-all")
+    public ResponseEntity<?> clearAllOrders() {
+        long count = orderService.clearAllOrders();
+        return ResponseEntity.ok(Map.of("message", "All orders deleted", "deletedCount", count));
+    }
 }
