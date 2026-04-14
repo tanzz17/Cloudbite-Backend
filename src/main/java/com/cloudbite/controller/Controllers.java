@@ -122,7 +122,17 @@ class CustomerController {
 
     private User getUser(Principal principal) {
         return userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getName()));
+    }
+
+    @GetMapping("/debug/me")
+    public ResponseEntity<?> debugMe(Principal principal) {
+        User user = getUser(principal);
+        return ResponseEntity.ok(Map.of(
+            "id", user.getId(),
+            "email", user.getEmail(),
+            "role", user.getRole().name()
+        ));
     }
 
     @GetMapping("/kitchens")
