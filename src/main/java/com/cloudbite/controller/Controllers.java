@@ -1,5 +1,6 @@
 package com.cloudbite.controller;
 
+import com.cloudbite.dto.TrackingDTOs.UpdateLocationRequest;
 import com.cloudbite.model.User;
 import com.cloudbite.repository.UserRepository;
 import com.cloudbite.service.*;
@@ -318,12 +319,29 @@ class DeliveryController {
         return ResponseEntity.ok(orderService.markDelivered(orderId, getUser(principal)));
     }
 
+    @PatchMapping("/orders/{orderId}/start-trip")
+    public ResponseEntity<?> startTrip(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.startTrip(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/arrived")
+    public ResponseEntity<?> arrived(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.arrivedAtRestaurant(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/picked-up")
+    public ResponseEntity<?> pickedUp(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.pickUp(orderId, getUser(principal)));
+    }
+
+    @PatchMapping("/orders/{orderId}/heading-to-customer")
+    public ResponseEntity<?> headingToCustomer(Principal principal, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.headingToCustomer(orderId, getUser(principal)));
+    }
+
     @PostMapping("/location")
-    public ResponseEntity<?> updateLocation(Principal principal, @RequestBody Map<String, Object> req) {
-        Long orderId = req.containsKey("orderId") ? ((Number) req.get("orderId")).longValue() : null;
-        double lat = ((Number) req.get("latitude")).doubleValue();
-        double lng = ((Number) req.get("longitude")).doubleValue();
-        deliveryService.updateLocation(getUser(principal), orderId, lat, lng);
+    public ResponseEntity<?> updateLocation(Principal principal, @RequestBody UpdateLocationRequest request) {
+        deliveryService.updateLocation(getUser(principal), request);
         return ResponseEntity.ok(Map.of("message", "Location updated"));
     }
 }

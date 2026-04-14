@@ -173,6 +173,68 @@ public class OrderService {
         return saved;
     }
 
+    // ======== GPS Delivery Steps ========
+    public Order startTrip(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.PARTNER_ASSIGNED) {
+            throw new RuntimeException("Order must be assigned before starting trip");
+        }
+        order.setStatus(OrderStatus.HEADING_TO_RESTAURANT);
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order arrivedAtRestaurant(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.HEADING_TO_RESTAURANT) {
+            throw new RuntimeException("Must start trip before arriving");
+        }
+        order.setStatus(OrderStatus.ARRIVED_AT_RESTAURANT);
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order pickUp(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.ARRIVED_AT_RESTAURANT) {
+            throw new RuntimeException("Must arrive at restaurant before picking up");
+        }
+        order.setStatus(OrderStatus.PICKED_UP);
+        order.setPickedUpAt(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
+    public Order headingToCustomer(Long orderId, User deliveryPartner) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getDeliveryPartner().getId().equals(deliveryPartner.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        if (order.getStatus() != OrderStatus.PICKED_UP) {
+            throw new RuntimeException("Must pick up order before heading to customer");
+        }
+        order.setStatus(OrderStatus.HEADING_TO_CUSTOMER);
+        Order saved = orderRepository.save(order);
+        notifyOrderUpdate(saved);
+        return saved;
+    }
+
     public Order cancelOrderByCustomer(Long orderId, User customer, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));

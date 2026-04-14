@@ -1,8 +1,11 @@
 package com.cloudbite.service;
 
+import com.cloudbite.dto.TrackingDTOs.UpdateLocationRequest;
 import com.cloudbite.model.DeliveryTracking;
+import com.cloudbite.model.Order;
 import com.cloudbite.model.User;
 import com.cloudbite.repository.DeliveryTrackingRepository;
+import com.cloudbite.repository.OrderRepository;
 import com.cloudbite.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -17,6 +20,7 @@ public class DeliveryService {
 
     private final UserRepository userRepository;
     private final DeliveryTrackingRepository deliveryTrackingRepository;
+    private final OrderRepository orderRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     public User toggleAvailability(User partner) {
@@ -24,25 +28,44 @@ public class DeliveryService {
         return userRepository.save(partner);
     }
 
-    public void updateLocation(User partner, Long orderId, double lat, double lng) {
-        // Update partner's current location
+    public void updateLocation(User partner, UpdateLocationRequest request) {
+        double lat = request.getLatitude();
+        double lng = request.getLongitude();
+        Long orderId = request.getOrderId();
+        Double bearing = request.getBearing();
+        Double speed = request.getSpeed();
+
         partner.setCurrentLatitude(lat);
         partner.setCurrentLongitude(lng);
         userRepository.save(partner);
 
-        // Save tracking record if on active delivery
         if (orderId != null) {
             DeliveryTracking tracking = DeliveryTracking.builder()
                     .deliveryPartner(partner)
                     .latitude(lat)
                     .longitude(lng)
+                    .speed(speed)
                     .build();
+            
+            Optional<Order> orderOpt = orderRepository.findById(orderId);
+            if (orderOpt.isPresent()) {
+                tracking.setOrder(orderOpt.get());
+            }
             deliveryTrackingRepository.save(tracking);
 
-            // Broadcast to customer tracking topic
+            String orderStatus = orderOpt.map(Order::getStatus).map(s -> s.name()).orElse(null);
+
             messagingTemplate.convertAndSend(
                     "/topic/order/" + orderId + "/location",
-                    Map.of("lat", lat, "lng", lng, "partnerId", partner.getId())
+                    Map.of(
+                            "latitude", lat,
+                            "longitude", lng,
+                            "bearing", bearing != null ? bearing : 0.0,
+                            "speed", speed != null ? speed : 0.0,
+                            "orderId", orderId,
+                            "riderId", partner.getId(),
+                            "orderStatus", orderStatus != null ? orderStatus : ""
+                    )
             );
         }
     }

@@ -11,8 +11,10 @@ public class TrackingDTOs {
     @AllArgsConstructor
     public static class UpdateLocationRequest {
         private Long orderId;
+        private Long riderId;
         private Double latitude;
         private Double longitude;
+        private Double bearing;
         private Double speed;
     }
 
@@ -23,6 +25,11 @@ public class TrackingDTOs {
     public static class LocationDTO {
         private Double latitude;
         private Double longitude;
+        private Double bearing;
+        private Double speed;
+        private Long orderId;
+        private Long riderId;
+        private String orderStatus;
         private LocalDateTime recordedAt;
     }
 }
