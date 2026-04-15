@@ -44,6 +44,7 @@ public class Order {
     private List<OrderItem> items = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "VARCHAR(30)")
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
