@@ -196,6 +196,7 @@ public class PaymentService {
         log.info("DEMO MODE: Completing simulated payment for order {}", orderId);
         
         order.setPaymentStatus(PaymentStatus.COMPLETED);
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setRazorpayPaymentId("demo_payment_" + System.currentTimeMillis());
         orderRepository.save(order);
 
@@ -396,6 +397,7 @@ public class PaymentService {
                 Order order = orderRepository.findById(orderId)
                         .orElseThrow(() -> new RuntimeException("Order not found"));
                 order.setPaymentStatus(PaymentStatus.COMPLETED);
+                order.setStatus(OrderStatus.CONFIRMED);
                 order.setRazorpayPaymentId(razorpayPaymentId);
                 orderRepository.save(order);
 
