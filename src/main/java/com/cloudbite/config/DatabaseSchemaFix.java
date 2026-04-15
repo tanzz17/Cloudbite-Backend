@@ -23,4 +23,14 @@ public class DatabaseSchemaFix {
             log.warn("Could not modify user_addresses columns (may already be nullable): {}", e.getMessage());
         }
     }
+
+    @PostConstruct
+    public void addSubCategoryColumn() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE menu_items ADD COLUMN sub_category VARCHAR(255) DEFAULT 'General'");
+            log.info("Added sub_category column to menu_items");
+        } catch (Exception e) {
+            log.warn("Could not add sub_category column (may already exist): {}", e.getMessage());
+        }
+    }
 }
