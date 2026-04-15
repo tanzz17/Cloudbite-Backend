@@ -176,6 +176,11 @@ class CustomerController {
         return ResponseEntity.ok(kitchenService.getMenuItems(kitchenId));
     }
 
+    @GetMapping("/kitchens/{kitchenId}/menu/subcategories")
+    public ResponseEntity<?> getSubCategories(@PathVariable Long kitchenId, @RequestParam String category) {
+        return ResponseEntity.ok(kitchenService.getMenuSubCategories(kitchenId, category));
+    }
+
     // Cart
     @GetMapping("/cart")
     public ResponseEntity<?> getCart(Principal principal) {

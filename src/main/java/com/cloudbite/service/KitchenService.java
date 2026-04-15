@@ -75,7 +75,8 @@ public class KitchenService {
                 .name((String) request.get("name"))
                 .description((String) request.get("description"))
                 .price(((Number) request.get("price")).doubleValue())
-                .category((String) request.get("category"))
+                .category((String) request.getOrDefault("category", "Main Course"))
+                .subCategory((String) request.getOrDefault("subCategory", "General"))
                 .imageUrl((String) request.get("imageUrl"))
                 .isVeg(request.containsKey("isVeg") ? (Boolean) request.get("isVeg") : true)
                 .isAvailable(true)
@@ -96,6 +97,7 @@ public class KitchenService {
         if (request.containsKey("description")) item.setDescription((String) request.get("description"));
         if (request.containsKey("price")) item.setPrice(((Number) request.get("price")).doubleValue());
         if (request.containsKey("category")) item.setCategory((String) request.get("category"));
+        if (request.containsKey("subCategory")) item.setSubCategory((String) request.get("subCategory"));
         if (request.containsKey("imageUrl")) item.setImageUrl((String) request.get("imageUrl"));
         if (request.containsKey("isVeg")) item.setIsVeg((Boolean) request.get("isVeg"));
         if (request.containsKey("isAvailable")) item.setIsAvailable((Boolean) request.get("isAvailable"));
@@ -121,6 +123,10 @@ public class KitchenService {
 
     public List<String> getMenuCategories(Long kitchenId) {
         return menuItemRepository.findDistinctCategoriesByKitchenId(kitchenId);
+    }
+
+    public List<String> getMenuSubCategories(Long kitchenId, String category) {
+        return menuItemRepository.findDistinctSubCategoriesByKitchenIdAndCategory(kitchenId, category);
     }
 
     public MenuItem toggleItemAvailability(Long itemId, User owner) {

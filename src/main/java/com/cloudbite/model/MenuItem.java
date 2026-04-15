@@ -31,6 +31,7 @@ public class MenuItem {
     private Double price;
 
     private String category;
+    private String subCategory; // e.g., "Chinese Starters", "South Indian", "Breads"
     private String imageUrl;
 
     @Builder.Default
@@ -55,6 +56,22 @@ public class MenuItem {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @PrePersist
+    @PreUpdate
+    public void setDefaults() {
+        if (subCategory == null || subCategory.trim().isEmpty()) {
+            subCategory = "General";
+        }
+        if (category == null || category.trim().isEmpty()) {
+            category = "Main Course";
+        }
+    }
+
+    public String getCategory() {
+        return category != null ? category : "Main Course";
+    }
+    
+    public String getSubCategory() {
+        return subCategory != null ? subCategory : "General";
+    }
 }

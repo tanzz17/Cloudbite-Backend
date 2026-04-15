@@ -15,4 +15,10 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
 
     @Query("SELECT DISTINCT m.category FROM MenuItem m WHERE m.kitchen.id = :kitchenId")
     List<String> findDistinctCategoriesByKitchenId(Long kitchenId);
+
+    @Query("SELECT DISTINCT m.subCategory FROM MenuItem m WHERE m.kitchen.id = :kitchenId AND m.category = :category")
+    List<String> findDistinctSubCategoriesByKitchenIdAndCategory(Long kitchenId, String category);
+    
+    @Query("SELECT DISTINCT m.subCategory FROM MenuItem m WHERE m.category = :category")
+    List<String> findDistinctSubCategoriesByCategory(String category);
 }
