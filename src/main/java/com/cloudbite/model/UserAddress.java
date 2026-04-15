@@ -34,8 +34,10 @@ public class UserAddress {
 
     private String receiverPhone;
 
+    @Column(columnDefinition = "DOUBLE")
     private Double latitude;
 
+    @Column(columnDefinition = "DOUBLE")
     private Double longitude;
 
     @Builder.Default
