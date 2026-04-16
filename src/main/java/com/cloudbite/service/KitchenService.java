@@ -141,6 +141,10 @@ public class KitchenService {
         return menuItemRepository.findDistinctCategoriesByKitchenId(kitchenId);
     }
 
+    public List<String> getMenuSubCategories(Long kitchenId, String category) {
+        return menuItemRepository.findDistinctSubCategoriesByKitchenIdAndCategory(kitchenId, category);
+    }
+
     public MenuItem toggleItemAvailability(Long itemId, User owner) {
         MenuItem item = menuItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));

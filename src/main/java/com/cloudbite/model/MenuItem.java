@@ -31,6 +31,7 @@ public class MenuItem {
     private Double price;
 
     private String category;
+    private String subCategory;
     private String imageUrl;
 
     @Builder.Default
