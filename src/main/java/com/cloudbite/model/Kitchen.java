@@ -56,13 +56,13 @@ public class Kitchen {
     private LocalTime closingTime;
 
     @Builder.Default
-    private Double deliveryRadius = 5.0; // km
+    private Double deliveryRadius = 5.0;
 
     @Builder.Default
     private Integer minOrderAmount = 100;
 
     @Builder.Default
-    private Integer estimatedDeliveryTime = 30; // minutes
+    private Integer estimatedDeliveryTime = 30;
 
     @Builder.Default
     private Double deliveryFee = 30.0;
@@ -83,7 +83,13 @@ public class Kitchen {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+
+    public void setCoverImage(String coverImage) { this.coverImage = coverImage; }
+    public void setMinOrderAmount(Integer minOrderAmount) { this.minOrderAmount = minOrderAmount; }
+    public void setEstimatedDeliveryTime(Integer estimatedDeliveryTime) { this.estimatedDeliveryTime = estimatedDeliveryTime; }
+    public void setDeliveryFee(Double deliveryFee) { this.deliveryFee = deliveryFee; }
+    public void setDeliveryRadius(Double deliveryRadius) { this.deliveryRadius = deliveryRadius; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 }
