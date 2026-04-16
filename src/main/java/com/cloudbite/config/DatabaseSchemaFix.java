@@ -1,26 +1,26 @@
 package com.cloudbite.config;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class DatabaseSchemaFix {
 
     private final JdbcTemplate jdbcTemplate;
+
+    public DatabaseSchemaFix(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @PostConstruct
     public void fixUserAddressesColumns() {
         try {
             jdbcTemplate.execute("ALTER TABLE user_addresses MODIFY COLUMN latitude DOUBLE NULL");
             jdbcTemplate.execute("ALTER TABLE user_addresses MODIFY COLUMN longitude DOUBLE NULL");
-            log.info("Fixed user_addresses columns - latitude/longitude now nullable");
+            System.out.println("Fixed user_addresses columns - latitude/longitude now nullable");
         } catch (Exception e) {
-            log.warn("Could not modify user_addresses columns (may already be nullable): {}", e.getMessage());
+            System.out.println("Could not modify user_addresses columns: " + e.getMessage());
         }
     }
 
@@ -28,9 +28,9 @@ public class DatabaseSchemaFix {
     public void addSubCategoryColumn() {
         try {
             jdbcTemplate.execute("ALTER TABLE menu_items ADD COLUMN sub_category VARCHAR(255) DEFAULT 'General'");
-            log.info("Added sub_category column to menu_items");
+            System.out.println("Added sub_category column to menu_items");
         } catch (Exception e) {
-            log.warn("Could not add sub_category column (may already exist): {}", e.getMessage());
+            System.out.println("Could not add sub_category column: " + e.getMessage());
         }
     }
 }
