@@ -71,12 +71,15 @@ public class KitchenService {
     // ======== Menu Management ========
     public MenuItem addMenuItem(User owner, Map<String, Object> request) {
         Kitchen kitchen = getKitchenByOwner(owner);
+        String category = (String) request.get("category");
+        String subCategory = (String) request.get("subCategory");
+        
         MenuItem item = MenuItem.builder()
                 .name((String) request.get("name"))
                 .description((String) request.get("description"))
                 .price(((Number) request.get("price")).doubleValue())
-                .category((String) request.getOrDefault("category", "Main Course"))
-                .subCategory((String) request.getOrDefault("subCategory", "General"))
+                .category(category != null && !category.isEmpty() ? category : "Main Course")
+                .subCategory(subCategory != null && !subCategory.isEmpty() ? subCategory : "General")
                 .imageUrl((String) request.get("imageUrl"))
                 .isVeg(request.containsKey("isVeg") ? (Boolean) request.get("isVeg") : true)
                 .isAvailable(true)
@@ -96,8 +99,14 @@ public class KitchenService {
         if (request.containsKey("name")) item.setName((String) request.get("name"));
         if (request.containsKey("description")) item.setDescription((String) request.get("description"));
         if (request.containsKey("price")) item.setPrice(((Number) request.get("price")).doubleValue());
-        if (request.containsKey("category")) item.setCategory((String) request.get("category"));
-        if (request.containsKey("subCategory")) item.setSubCategory((String) request.get("subCategory"));
+        if (request.containsKey("category")) {
+            String cat = (String) request.get("category");
+            item.setCategory(cat != null && !cat.isEmpty() ? cat : "Main Course");
+        }
+        if (request.containsKey("subCategory")) {
+            String subCat = (String) request.get("subCategory");
+            item.setSubCategory(subCat != null && !subCat.isEmpty() ? subCat : "General");
+        }
         if (request.containsKey("imageUrl")) item.setImageUrl((String) request.get("imageUrl"));
         if (request.containsKey("isVeg")) item.setIsVeg((Boolean) request.get("isVeg"));
         if (request.containsKey("isAvailable")) item.setIsAvailable((Boolean) request.get("isAvailable"));
