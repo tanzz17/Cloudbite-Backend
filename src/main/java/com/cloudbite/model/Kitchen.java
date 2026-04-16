@@ -13,7 +13,8 @@ import java.util.List;
 @Entity
 @Table(name = "kitchens")
 @JsonIgnoreProperties({"owner", "menuItems", "orders"})
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -84,12 +85,4 @@ public class Kitchen {
     private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
-
-    public void setCoverImage(String coverImage) { this.coverImage = coverImage; }
-    public void setMinOrderAmount(Integer minOrderAmount) { this.minOrderAmount = minOrderAmount; }
-    public void setEstimatedDeliveryTime(Integer estimatedDeliveryTime) { this.estimatedDeliveryTime = estimatedDeliveryTime; }
-    public void setDeliveryFee(Double deliveryFee) { this.deliveryFee = deliveryFee; }
-    public void setDeliveryRadius(Double deliveryRadius) { this.deliveryRadius = deliveryRadius; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
 }
