@@ -101,19 +101,40 @@ public class KitchenService {
         if (request.containsKey("price")) item.setPrice(((Number) request.get("price")).doubleValue());
         if (request.containsKey("category")) {
             String cat = (String) request.get("category");
-            item.setCategory(cat != null && !cat.isEmpty() ? cat : "Main Course");
+            if (cat != null && !cat.trim().isEmpty()) {
+                item.setCategory(cat);
+            } else {
+                item.setCategory("Main Course");
+            }
         }
         if (request.containsKey("subCategory")) {
             String subCat = (String) request.get("subCategory");
-            item.setSubCategory(subCat != null && !subCat.isEmpty() ? subCat : "General");
+            if (subCat != null && !subCat.trim().isEmpty()) {
+                item.setSubCategory(subCat);
+            } else {
+                item.setSubCategory("General");
+            }
         }
         if (request.containsKey("imageUrl")) item.setImageUrl((String) request.get("imageUrl"));
-        if (request.containsKey("isVeg")) item.setIsVeg((Boolean) request.get("isVeg"));
-        if (request.containsKey("isAvailable")) item.setIsAvailable((Boolean) request.get("isAvailable"));
-        if (request.containsKey("isBestSeller")) item.setIsBestSeller((Boolean) request.get("isBestSeller"));
-        if (request.containsKey("preparationTime"))
-            item.setPreparationTime(((Number) request.get("preparationTime")).intValue());
-        return menuItemRepository.save(item);
+        if (request.containsKey("isVeg")) {
+            Object isVeg = request.get("isVeg");
+            item.setIsVeg(isVeg instanceof Boolean ? (Boolean) isVeg : Boolean.parseBoolean(String.valueOf(isVeg)));
+        }
+        if (request.containsKey("isAvailable")) {
+            Object isAvail = request.get("isAvailable");
+            item.setIsAvailable(isAvail instanceof Boolean ? (Boolean) isAvail : Boolean.parseBoolean(String.valueOf(isAvail)));
+        }
+        if (request.containsKey("isBestSeller")) {
+            Object isBest = request.get("isBestSeller");
+            item.setIsBestSeller(isBest instanceof Boolean ? (Boolean) isBest : Boolean.parseBoolean(String.valueOf(isBest)));
+        }
+        if (request.containsKey("preparationTime") && request.get("preparationTime") != null) {
+            if (request.get("preparationTime") instanceof Number) {
+                item.setPreparationTime(((Number) request.get("preparationTime")).intValue());
+            }
+        }
+        
+        return menuItemRepository.saveAndFlush(item);
     }
 
     public void deleteMenuItem(Long itemId, User owner) {

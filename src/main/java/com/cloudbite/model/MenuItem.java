@@ -57,7 +57,7 @@ public class MenuItem {
     private LocalDateTime createdAt;
 
     @PrePersist
-    @PreUpdate
+    @PrePersist
     public void setDefaults() {
         if (subCategory == null || subCategory.trim().isEmpty()) {
             subCategory = "General";
@@ -68,10 +68,10 @@ public class MenuItem {
     }
 
     public String getCategory() {
-        return category != null ? category : "Main Course";
+        return category;
     }
     
     public String getSubCategory() {
-        return subCategory != null ? subCategory : "General";
+        return subCategory;
     }
 }
